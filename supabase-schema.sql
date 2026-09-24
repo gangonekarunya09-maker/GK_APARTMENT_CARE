@@ -1,5 +1,5 @@
 -- ====================================================================
--- SUPABASE POSTGRESQL PRODUCTION BACKEND SCHEMA
+-- SUPABASE POSTGRESQL PRODUCTION BACKEND SCHEMA (CLEAN & EMPTY STATE)
 -- App: GateKeep / Community Services & Group Buying Platform
 -- ====================================================================
 
@@ -213,7 +213,7 @@ ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rwa_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vendor_applications ENABLE ROW LEVEL SECURITY;
 
--- Allow Public/Anon Full Access (Insert/Update/Delete) for application functionality
+-- Allow Public/Anon Full Access for application functionality
 CREATE POLICY "Allow All Apartments" ON apartments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow All Categories" ON service_categories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow All Providers" ON service_providers FOR ALL USING (true) WITH CHECK (true);
@@ -232,49 +232,3 @@ BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
 COMMIT;
-
--- ====================================================================
--- 6. Initial Seed Data
--- ====================================================================
-
-INSERT INTO apartments (id, name, slug, portal_token, address, area, city, pincode, total_units, gate_security_app, rwa_contact, rwa_phone, rwa_email, status, notes, created_at)
-VALUES
-('community_green_valley_001', 'Green Valley Apartments', 'green-valley', '7H4K92', 'Road No. 12, Banjara Hills', 'Banjara Hills', 'Hyderabad', '500034', 320, 'MyGate', 'Col. K. R. Sharma (President)', '+91 98490 12345', 'rwa@greenvalleyhyd.org', 'active', 'Gate passes issued via MyGate portal.', '2026-01-15T10:00:00Z'),
-('community_my_home_bhooja_002', 'My Home Bhooja', 'my-home-bhooja', 'MH82B1', 'Silpa Gram Craft Village, Rai Durg', 'HITEC City', 'Hyderabad', '500081', 1860, 'MyGate', 'Venkata Ramana (Secretary)', '+91 94401 88990', 'facilities@bhoojarwa.in', 'active', 'Block A to G. Dedicated service elevators available.', '2026-02-01T10:00:00Z'),
-('community_aparna_sarovar_003', 'Aparna Sarovar Zenith', 'aparna-sarovar', 'AS39Z4', 'Near Citizen Hospital, Nallagandla', 'Nallagandla', 'Hyderabad', '500019', 2475, 'NoBrokerHood', 'Deepak Reddy (Facility Manager)', '+91 97010 44552', 'rwa.zenith@aparna.org', 'active', 'Strict gate approval through NoBrokerHood.', '2026-02-10T10:00:00Z'),
-('community_jayabheri_summit_004', 'Jayabheri The Summit', 'jayabheri-summit', 'JS15T8', 'Nanakramguda Financial District', 'Financial District', 'Hyderabad', '500032', 540, 'MyGate', 'Srinivas Murthy', '+91 99890 33441', 'manager@jayabherisummit.com', 'active', 'Sunday bulk slots prioritized by tower committees.', '2026-02-15T10:00:00Z'),
-('community_lakeview_005', 'Lakeview Residency', 'lakeview-residency', 'LR61V3', 'Durgam Cheruvu Road, Kavuri Hills', 'Madhapur', 'Hyderabad', '500081', 210, 'Traditional', 'M. Sudhakar Rao', '+91 98850 77123', 'lakeview.rwa@gmail.com', 'active', 'Traditional gate entry logging at security room.', '2026-02-20T10:00:00Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO service_categories (id, name, icon_name, description, active)
-VALUES
-('cat-auto-care', 'Auto Care', 'Car', 'Doorstep waterless detailing, interior foam deep clean, paint protection & battery care.', true),
-('cat-deep-cleaning', 'Deep Cleaning', 'Sparkles', 'Full home, sofa, mattress, balcony & water tank cleaning for apartments.', true),
-('cat-pest-control', 'Pest Control', 'ShieldCheck', 'Odorless cockroach gel, bedbug treatment, mosquito fogging & termite shield.', true),
-('cat-home-repairs', 'Home Repairs', 'Wrench', 'Certified electrical work, plumbing, AC servicing, carpentry & painting.', true),
-('cat-pet-grooming', 'Pet Care & Grooming', 'Heart', 'At-home grooming van, vet visits on call, pet sitting & walking.', true),
-('cat-appliance-care', 'Appliance Servicing', 'Armchair', 'AC gas refilling, chimney deep wash, washing machine & RO water purifier care.', true)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO service_providers (id, business_name, contact_person, phone, whatsapp, email, category_ids, services_offered, service_areas, address, normal_pricing_ratio, verification_status, completed_jobs, rating, notes, created_at)
-VALUES
-('prov-aqua-shine', 'AquaShine Express Detailing', 'Rajesh Varma', '+91 98480 11223', '+91 98480 11223', 'contact@aquashine.in', ARRAY['cat-auto-care'], ARRAY['Waterless Eco Car Wash', 'Sofa & Mattress Shampooing'], ARRAY['Banjara Hills', 'HITEC City', 'Nallagandla', 'Financial District'], 'Plot 42, Auto Nagar, Gachibowli, Hyderabad', 1.00, 'verified', 1420, 4.90, 'Equipped with portable steam machines.', '2026-01-01T10:00:00Z'),
-('prov-clean-hive', 'CleanHive Home Care', 'Anitha Rao', '+91 97001 22334', '+91 97001 22334', 'support@cleanhive.in', ARRAY['cat-deep-cleaning', 'cat-pest-control'], ARRAY['Full Home Deep Clean', 'Herbal Pest Control Shield'], ARRAY['HITEC City', 'Madhapur', 'Gachibowli', 'Financial District'], 'Suite 302, Cyber Towers Road, Madhapur, Hyderabad', 1.00, 'verified', 890, 4.80, 'Uses non-toxic eco-certified cleaning chemicals.', '2026-01-10T10:00:00Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO services (id, name, category_id, description, icon_name, apartment_ids, provider_id, provider_name, normal_price, community_price, sunday_bulk_price, minimum_demand, current_demand, duration_minutes, available_days, available_slots, status, popular, created_at)
-VALUES
-('srv-car-wash', 'Waterless Car Wash & Interior Vacuuming', 'cat-auto-care', 'Doorstep waterless exterior eco-wash, high-pressure tire degreasing, dash shine & complete interior vacuuming right in your apartment basement slot.', 'Car', ARRAY[]::TEXT[], 'prov-aqua-shine', 'AquaShine Express Detailing', 499, 299, 249, 10, 14, 45, ARRAY['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ARRAY['07:00 AM - 09:00 AM', '09:00 AM - 11:00 AM', '04:00 PM - 06:00 PM', '06:00 PM - 08:00 PM'], 'active', true, '2026-01-20T10:00:00Z'),
-('srv-sofa-shampoo', 'Sofa & Upholstery Steam Clean (5-Seater)', 'cat-deep-cleaning', 'Deep germicidal hot-steam extraction, stain removal & anti-allergen treatment for 5-seater fabric/leather sofas.', 'Sparkles', ARRAY[]::TEXT[], 'prov-clean-hive', 'CleanHive Home Care', 1499, 999, 849, 5, 8, 90, ARRAY['Fri', 'Sat', 'Sun'], ARRAY['09:00 AM - 11:00 AM', '11:00 AM - 01:00 PM', '02:00 PM - 04:00 PM'], 'active', true, '2026-01-22T10:00:00Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO campaigns (id, token, apartment_id, service_id, normal_price, community_price, sunday_bulk_price, minimum_demand, current_demand, available_dates, available_slots, status, provider_id, notes, created_at)
-VALUES
-('camp_gv_carwash_001', '7H4K-CW', 'community_green_valley_001', 'srv-car-wash', 499, 299, 249, 10, 14, ARRAY['2026-03-29', '2026-04-05'], ARRAY['07:00 AM - 09:00 AM', '09:00 AM - 11:00 AM', '04:00 PM - 06:00 PM'], 'target_reached', 'prov-aqua-shine', 'RWA approved basement parking bay 2.', '2026-03-01T10:00:00Z'),
-('camp_bhooja_sofa_002', 'MH82-SF', 'community_my_home_bhooja_002', 'srv-sofa-shampoo', 1499, 999, 849, 8, 6, ARRAY['2026-03-29', '2026-04-05'], ARRAY['09:00 AM - 11:00 AM', '11:00 AM - 01:00 PM', '02:00 PM - 04:00 PM'], 'collecting_demand', 'prov-clean-hive', 'Block C & D service elevator booked.', '2026-03-10T10:00:00Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO bookings (id, booking_number, service_id, service_name, apartment_id, apartment_name, resident_name, phone, email, block, flat_number, date, slot, price, booking_type, status, provider_id, provider_name, provider_phone, notes, created_at)
-VALUES
-('bk_001', 'GK-CW-901', 'srv-car-wash', 'Waterless Car Wash & Interior Vacuuming', 'community_green_valley_001', 'Green Valley Apartments', 'Suresh Kumar', '+91 98490 88221', 'suresh.k@gmail.com', 'Block A', 'A-402', '2026-03-29', '07:00 AM - 09:00 AM', 249, 'sunday_bulk', 'vendor_assigned', 'prov-aqua-shine', 'AquaShine Express Detailing', '+91 98480 11223', 'Parked at basement slot B-14', '2026-03-15T10:00:00Z')
-ON CONFLICT (id) DO NOTHING;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   Apartment,
   ServiceCategory,
@@ -53,11 +54,14 @@ interface AppContextType {
 
   // Supabase Status
   isBackendConnected: boolean;
+  authUser: SupabaseUser | null;
 
   // Admin authentication
   isAdminAuthenticated: boolean;
   loginAdmin: (password: string) => boolean;
-  logoutAdmin: () => void;
+  loginWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logoutAdmin: () => Promise<void>;
 
   // Admin section
   adminSection: string;
@@ -168,6 +172,7 @@ const STORAGE_KEYS = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isBackendConnected = isSupabaseConfigured();
+  const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
 
   // Browser Path Router State
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -179,7 +184,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       window.history.pushState({}, '', path);
     } catch {
-      // In some sandboxes pushState might be restricted
+      // ignore
     }
   };
 
@@ -197,6 +202,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved === 'true';
   });
 
+  // Supabase Auth Listener
+  useEffect(() => {
+    if (supabase && isBackendConnected) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setAuthUser(session.user);
+          setIsAdminAuthenticated(true);
+          localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        }
+      });
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setAuthUser(session.user);
+          setIsAdminAuthenticated(true);
+          localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        } else {
+          setAuthUser(null);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [isBackendConnected]);
+
+  const loginWithSupabase = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!supabase || !isBackendConnected) {
+      return { success: false, error: 'Supabase URL and Anon Key are not configured in environment variables.' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.session?.user) {
+        setAuthUser(data.session.user);
+        setIsAdminAuthenticated(true);
+        localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        return { success: true };
+      }
+
+      return { success: false, error: 'Failed to establish session.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'An unexpected authentication error occurred.' };
+    }
+  };
+
+  const signUpWithSupabase = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!supabase || !isBackendConnected) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.session?.user) {
+        setAuthUser(data.session.user);
+        setIsAdminAuthenticated(true);
+        localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        return { success: true };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Signup failed.' };
+    }
+  };
+
   const loginAdmin = (password: string) => {
     if (password.trim().length > 0) {
       setIsAdminAuthenticated(true);
@@ -206,7 +296,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   };
 
-  const logoutAdmin = () => {
+  const logoutAdmin = async () => {
+    if (supabase && isBackendConnected) {
+      await supabase.auth.signOut();
+    }
+    setAuthUser(null);
     setIsAdminAuthenticated(false);
     localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
     navigate('/');
@@ -217,7 +311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adminSelectedCommunityId, setAdminSelectedCommunityId] = useState<string | null>(null);
   const [residentTab, setResidentTab] = useState<'services' | 'community' | 'my-bookings' | 'rwa' | 'vendor'>('services');
 
-  // Load initial state from LocalStorage or Seed
+  // Load initial state
   const [apartments, setApartments] = useState<Apartment[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.APARTMENTS);
     return saved ? JSON.parse(saved) : INITIAL_APARTMENTS;
@@ -228,25 +322,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const searchParams = new URLSearchParams(window.location.search);
       const queryCommunity = searchParams.get('c') || searchParams.get('community');
       if (queryCommunity) {
-        const match = INITIAL_APARTMENTS.find(
+        const match = apartments.find(
           a =>
             a.id === queryCommunity ||
             a.slug === queryCommunity ||
             (a.portalToken && a.portalToken.toLowerCase() === queryCommunity.toLowerCase())
-        );
-        if (match) return match.id;
-      }
-
-      const pathParts = window.location.pathname.split('/').filter(Boolean);
-      if (pathParts[0] === 'c' && pathParts[1]) {
-        const slugOrToken = pathParts[1];
-        const secondPart = pathParts[2];
-        const match = INITIAL_APARTMENTS.find(
-          a =>
-            a.slug === slugOrToken ||
-            a.id === slugOrToken ||
-            (a.portalToken && a.portalToken.toLowerCase() === slugOrToken.toLowerCase()) ||
-            (secondPart && a.portalToken && a.portalToken.toLowerCase() === secondPart.toLowerCase())
         );
         if (match) return match.id;
       }
@@ -255,10 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const saved = localStorage.getItem(STORAGE_KEYS.SELECTED_APT);
-    if (saved && (saved === 'apt-green-valley' || saved.includes('green-valley'))) {
-      return 'community_green_valley_001';
-    }
-    return saved || 'community_green_valley_001';
+    return saved || (apartments[0]?.id || '');
   });
 
   const [categories, setCategories] = useState<ServiceCategory[]>(() => {
@@ -375,17 +452,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('vendor_applications').select('*').order('created_at', { ascending: false }),
       ]);
 
-      if (dbApts && dbApts.length > 0) setApartments(dbApts.map(mapApartmentFromDb));
-      if (dbCats && dbCats.length > 0) setCategories(dbCats.map(mapCategoryFromDb));
-      if (dbProvs && dbProvs.length > 0) setProviders(dbProvs.map(mapProviderFromDb));
-      if (dbSrvs && dbSrvs.length > 0) setServices(dbSrvs.map(mapServiceFromDb));
-      if (dbCamps && dbCamps.length > 0) setCampaigns(dbCamps.map(mapCampaignFromDb));
-      if (dbReqs && dbReqs.length > 0) setResidentRequests(dbReqs.map(mapResidentRequestFromDb));
-      if (dbBooks && dbBooks.length > 0) setBookings(dbBooks.map(mapBookingFromDb));
-      if (dbRwa && dbRwa.length > 0) setRwaApplications(dbRwa.map(mapRWAApplicationFromDb));
-      if (dbVnd && dbVnd.length > 0) setVendorApplications(dbVnd.map(mapVendorApplicationFromDb));
+      setApartments(dbApts ? dbApts.map(mapApartmentFromDb) : []);
+      setCategories(dbCats ? dbCats.map(mapCategoryFromDb) : []);
+      setProviders(dbProvs ? dbProvs.map(mapProviderFromDb) : []);
+      setServices(dbSrvs ? dbSrvs.map(mapServiceFromDb) : []);
+      setCampaigns(dbCamps ? dbCamps.map(mapCampaignFromDb) : []);
+      setResidentRequests(dbReqs ? dbReqs.map(mapResidentRequestFromDb) : []);
+      setBookings(dbBooks ? dbBooks.map(mapBookingFromDb) : []);
+      setRwaApplications(dbRwa ? dbRwa.map(mapRWAApplicationFromDb) : []);
+      setVendorApplications(dbVnd ? dbVnd.map(mapVendorApplicationFromDb) : []);
     } catch (err) {
-      console.warn('Supabase fetch error, using local fallback:', err);
+      console.warn('Supabase fetch error, using local state:', err);
     }
   }, [isBackendConnected]);
 
@@ -393,17 +470,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isBackendConnected) {
       loadSupabaseData();
 
-      // Subscribe to Realtime changes
       if (supabase) {
         const channel = supabase
           .channel('public-db-changes')
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public' },
-            () => {
-              loadSupabaseData();
-            }
-          )
+          .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+            loadSupabaseData();
+          })
           .subscribe();
 
         return () => {
@@ -478,7 +550,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Resident Demand Submission: creates resident request, bumps campaign demand
+  // Resident Demand Submission
   const submitResidentInterest = (
     requestData: Omit<ResidentRequest, 'id' | 'status' | 'submittedAt'>
   ): ResidentRequest => {
@@ -500,7 +572,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
     }
 
-    // Increase campaign demand count
     setCampaigns(prev =>
       prev.map(c => {
         if (c.id === requestData.campaignId) {
@@ -510,7 +581,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ? 'target_reached'
               : c.status;
 
-          // Update Supabase campaign demand
           if (supabase && isBackendConnected) {
             supabase
               .from('campaigns')
@@ -562,6 +632,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setApartments(prev => [newApt, ...prev]);
+    if (!selectedApartmentId) setSelectedApartmentId(newApt.id);
 
     if (supabase && isBackendConnected) {
       supabase
@@ -570,39 +641,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .then(({ error }) => {
           if (error) console.error('Supabase apartment insert error:', error);
         });
-    }
-
-    // Provision starter active campaigns for this newly created community
-    const starterServices = services.slice(0, 3);
-    const newCampaigns: Campaign[] = starterServices.map((srv, idx) => ({
-      id: `camp-${cleanSlug}-${srv.id}-${Date.now() + idx}`,
-      token: `${cleanSlug.substring(0, 3).toUpperCase()}-${srv.id.substring(4, 6).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
-      apartmentId: newApt.id,
-      serviceId: srv.id,
-      normalPrice: srv.normalPrice,
-      communityPrice: srv.communityPrice,
-      sundayBulkPrice: srv.sundayBulkPrice,
-      minimumDemand: srv.minimumDemand || 20,
-      currentDemand: 0,
-      availableDates: ['Sunday'],
-      availableSlots: srv.availableSlots && srv.availableSlots.length > 0
-        ? srv.availableSlots
-        : ['09:00 AM – 11:00 AM', '11:00 AM – 01:00 PM', '02:00 PM – 04:00 PM'],
-      status: 'collecting_demand',
-      notes: `${srv.name} community campaign for ${newApt.name}.`,
-      createdAt: new Date().toISOString(),
-    }));
-
-    if (newCampaigns.length > 0) {
-      setCampaigns(prev => [...newCampaigns, ...prev]);
-      if (supabase && isBackendConnected) {
-        supabase
-          .from('campaigns')
-          .insert(newCampaigns.map(mapCampaignToDb))
-          .then(({ error }) => {
-            if (error) console.error('Supabase campaign batch insert error:', error);
-          });
-      }
     }
 
     return newApt;
@@ -846,7 +884,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       serviceId: bookingData.serviceId,
       serviceName: srv?.name || 'Home Care Service',
       apartmentId: bookingData.apartmentId,
-      apartmentName: apt?.name || 'Hyderabad Society',
+      apartmentName: apt?.name || 'Community Resident',
       residentName: bookingData.residentName,
       phone: bookingData.phone,
       email: bookingData.email,
@@ -971,16 +1009,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_KEYS.RWA);
     localStorage.removeItem(STORAGE_KEYS.VENDORS);
 
-    setApartments(INITIAL_APARTMENTS);
-    setSelectedApartmentId('community_green_valley_001');
-    setCategories(INITIAL_CATEGORIES);
-    setProviders(INITIAL_PROVIDERS);
-    setServices(INITIAL_SERVICES);
-    setCampaigns(INITIAL_CAMPAIGNS);
-    setResidentRequests(INITIAL_RESIDENT_REQUESTS);
-    setBookings(INITIAL_BOOKINGS);
-    setRwaApplications(INITIAL_RWA_APPLICATIONS);
-    setVendorApplications(INITIAL_VENDOR_APPLICATIONS);
+    setApartments([]);
+    setSelectedApartmentId('');
+    setCategories([]);
+    setProviders([]);
+    setServices([]);
+    setCampaigns([]);
+    setResidentRequests([]);
+    setBookings([]);
+    setRwaApplications([]);
+    setVendorApplications([]);
   };
 
   return (
@@ -989,8 +1027,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentPath,
         navigate,
         isBackendConnected,
+        authUser,
         isAdminAuthenticated,
         loginAdmin,
+        loginWithSupabase,
+        signUpWithSupabase,
         logoutAdmin,
         adminSection,
         setAdminSection,
