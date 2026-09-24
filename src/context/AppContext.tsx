@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Apartment,
   ServiceCategory,
@@ -23,11 +23,36 @@ import {
   INITIAL_RWA_APPLICATIONS,
   INITIAL_VENDOR_APPLICATIONS,
 } from '../data/mockData';
+import {
+  supabase,
+  isSupabaseConfigured,
+  mapApartmentFromDb,
+  mapApartmentToDb,
+  mapCategoryFromDb,
+  mapCategoryToDb,
+  mapProviderFromDb,
+  mapProviderToDb,
+  mapServiceFromDb,
+  mapServiceToDb,
+  mapCampaignFromDb,
+  mapCampaignToDb,
+  mapResidentRequestFromDb,
+  mapResidentRequestToDb,
+  mapBookingFromDb,
+  mapBookingToDb,
+  mapRWAApplicationFromDb,
+  mapRWAApplicationToDb,
+  mapVendorApplicationFromDb,
+  mapVendorApplicationToDb,
+} from '../lib/supabase';
 
 interface AppContextType {
   // Routing & navigation
   currentPath: string;
   navigate: (path: string) => void;
+
+  // Supabase Status
+  isBackendConnected: boolean;
 
   // Admin authentication
   isAdminAuthenticated: boolean;
@@ -142,6 +167,8 @@ const STORAGE_KEYS = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isBackendConnected = isSupabaseConfigured();
+
   // Browser Path Router State
   const [currentPath, setCurrentPath] = useState<string>(() => {
     return window.location.pathname || '/';
@@ -171,7 +198,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const loginAdmin = (password: string) => {
-    // Clean admin authentication boundary
     if (password.trim().length > 0) {
       setIsAdminAuthenticated(true);
       localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
@@ -191,14 +217,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adminSelectedCommunityId, setAdminSelectedCommunityId] = useState<string | null>(null);
   const [residentTab, setResidentTab] = useState<'services' | 'community' | 'my-bookings' | 'rwa' | 'vendor'>('services');
 
-  // Load state from localStorage with seed data
+  // Load initial state from LocalStorage or Seed
   const [apartments, setApartments] = useState<Apartment[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.APARTMENTS);
     return saved ? JSON.parse(saved) : INITIAL_APARTMENTS;
   });
 
   const [selectedApartmentId, setSelectedApartmentId] = useState<string>(() => {
-    // 1. Check URL query parameters: ?c=token_or_slug or ?community=id
     try {
       const searchParams = new URLSearchParams(window.location.search);
       const queryCommunity = searchParams.get('c') || searchParams.get('community');
@@ -212,7 +237,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (match) return match.id;
       }
 
-      // 2. Check path /c/:slug/:token or /c/:slug
       const pathParts = window.location.pathname.split('/').filter(Boolean);
       if (pathParts[0] === 'c' && pathParts[1]) {
         const slugOrToken = pathParts[1];
@@ -324,6 +348,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.VENDORS, JSON.stringify(vendorApplications));
   }, [vendorApplications]);
 
+  // Fetch initial data from Supabase if configured
+  const loadSupabaseData = useCallback(async () => {
+    if (!supabase || !isBackendConnected) return;
+
+    try {
+      const [
+        { data: dbApts },
+        { data: dbCats },
+        { data: dbProvs },
+        { data: dbSrvs },
+        { data: dbCamps },
+        { data: dbReqs },
+        { data: dbBooks },
+        { data: dbRwa },
+        { data: dbVnd },
+      ] = await Promise.all([
+        supabase.from('apartments').select('*').order('name'),
+        supabase.from('service_categories').select('*').order('name'),
+        supabase.from('service_providers').select('*').order('business_name'),
+        supabase.from('services').select('*').order('created_at', { ascending: false }),
+        supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
+        supabase.from('resident_requests').select('*').order('submitted_at', { ascending: false }),
+        supabase.from('bookings').select('*').order('created_at', { ascending: false }),
+        supabase.from('rwa_applications').select('*').order('created_at', { ascending: false }),
+        supabase.from('vendor_applications').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (dbApts && dbApts.length > 0) setApartments(dbApts.map(mapApartmentFromDb));
+      if (dbCats && dbCats.length > 0) setCategories(dbCats.map(mapCategoryFromDb));
+      if (dbProvs && dbProvs.length > 0) setProviders(dbProvs.map(mapProviderFromDb));
+      if (dbSrvs && dbSrvs.length > 0) setServices(dbSrvs.map(mapServiceFromDb));
+      if (dbCamps && dbCamps.length > 0) setCampaigns(dbCamps.map(mapCampaignFromDb));
+      if (dbReqs && dbReqs.length > 0) setResidentRequests(dbReqs.map(mapResidentRequestFromDb));
+      if (dbBooks && dbBooks.length > 0) setBookings(dbBooks.map(mapBookingFromDb));
+      if (dbRwa && dbRwa.length > 0) setRwaApplications(dbRwa.map(mapRWAApplicationFromDb));
+      if (dbVnd && dbVnd.length > 0) setVendorApplications(dbVnd.map(mapVendorApplicationFromDb));
+    } catch (err) {
+      console.warn('Supabase fetch error, using local fallback:', err);
+    }
+  }, [isBackendConnected]);
+
+  useEffect(() => {
+    if (isBackendConnected) {
+      loadSupabaseData();
+
+      // Subscribe to Realtime changes
+      if (supabase) {
+        const channel = supabase
+          .channel('public-db-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public' },
+            () => {
+              loadSupabaseData();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }
+    }
+  }, [isBackendConnected, loadSupabaseData]);
+
   const selectedApartment = apartments.find(a => a.id === selectedApartmentId) || apartments[0];
 
   // Campaign Mutations
@@ -334,7 +423,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currentDemand: 0,
       createdAt: new Date().toISOString(),
     };
+
     setCampaigns(prev => [newCamp, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('campaigns')
+        .insert(mapCampaignToDb(newCamp))
+        .then(({ error }) => {
+          if (error) console.error('Supabase campaign insert error:', error);
+        });
+    }
+
     return newCamp;
   };
 
@@ -342,36 +442,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCampaigns(prev =>
       prev.map(c => (c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c))
     );
+
+    if (supabase && isBackendConnected) {
+      const dbUpdates: any = {};
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.providerId !== undefined) dbUpdates.provider_id = updates.providerId;
+      if (updates.currentDemand !== undefined) dbUpdates.current_demand = updates.currentDemand;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+      dbUpdates.updated_at = new Date().toISOString();
+
+      supabase
+        .from('campaigns')
+        .update(dbUpdates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase campaign update error:', error);
+        });
+    }
   };
 
   const updateCampaignStatus = (id: string, status: CampaignStatus, providerId?: string) => {
-    setCampaigns(prev =>
-      prev.map(c =>
-        c.id === id
-          ? {
-              ...c,
-              status,
-              providerId: providerId !== undefined ? providerId : c.providerId,
-              updatedAt: new Date().toISOString(),
-            }
-          : c
-      )
-    );
+    updateCampaign(id, {
+      status,
+      ...(providerId !== undefined ? { providerId } : {}),
+    });
   };
 
   const assignProviderToCampaign = (campaignId: string, providerId: string) => {
-    setCampaigns(prev =>
-      prev.map(c =>
-        c.id === campaignId
-          ? {
-              ...c,
-              providerId,
-              status: c.status === 'collecting_demand' ? 'provider_selected' : c.status,
-              updatedAt: new Date().toISOString(),
-            }
-          : c
-      )
-    );
+    const camp = campaigns.find(c => c.id === campaignId);
+    if (!camp) return;
+
+    updateCampaign(campaignId, {
+      providerId,
+      status: camp.status === 'collecting_demand' ? 'provider_selected' : camp.status,
+    });
   };
 
   // Resident Demand Submission: creates resident request, bumps campaign demand
@@ -387,6 +491,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setResidentRequests(prev => [newReq, ...prev]);
 
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('resident_requests')
+        .insert(mapResidentRequestToDb(newReq))
+        .then(({ error }) => {
+          if (error) console.error('Supabase resident request insert error:', error);
+        });
+    }
+
     // Increase campaign demand count
     setCampaigns(prev =>
       prev.map(c => {
@@ -396,6 +509,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             nextDemand >= c.minimumDemand && c.status === 'collecting_demand'
               ? 'target_reached'
               : c.status;
+
+          // Update Supabase campaign demand
+          if (supabase && isBackendConnected) {
+            supabase
+              .from('campaigns')
+              .update({
+                current_demand: nextDemand,
+                status: nextStatus,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', c.id)
+              .then(({ error }) => {
+                if (error) console.error('Supabase campaign demand update error:', error);
+              });
+          }
+
           return {
             ...c,
             currentDemand: nextDemand,
@@ -431,7 +560,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       portalToken: apt.portalToken || generateRandomToken(),
       createdAt: new Date().toISOString(),
     };
+
     setApartments(prev => [newApt, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('apartments')
+        .insert(mapApartmentToDb(newApt))
+        .then(({ error }) => {
+          if (error) console.error('Supabase apartment insert error:', error);
+        });
+    }
 
     // Provision starter active campaigns for this newly created community
     const starterServices = services.slice(0, 3);
@@ -456,6 +595,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (newCampaigns.length > 0) {
       setCampaigns(prev => [...newCampaigns, ...prev]);
+      if (supabase && isBackendConnected) {
+        supabase
+          .from('campaigns')
+          .insert(newCampaigns.map(mapCampaignToDb))
+          .then(({ error }) => {
+            if (error) console.error('Supabase campaign batch insert error:', error);
+          });
+      }
     }
 
     return newApt;
@@ -466,6 +613,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setApartments(prev =>
       prev.map(a => (a.id === apartmentId ? { ...a, portalToken: newToken } : a))
     );
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('apartments')
+        .update({ portal_token: newToken, updated_at: new Date().toISOString() })
+        .eq('id', apartmentId)
+        .then(({ error }) => {
+          if (error) console.error('Supabase token update error:', error);
+        });
+    }
+
     return newToken;
   };
 
@@ -497,17 +655,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'interested',
       submittedAt: new Date().toISOString(),
     };
+
     setResidentRequests(prev => [newReq, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('resident_requests')
+        .insert(mapResidentRequestToDb(newReq))
+        .then(({ error }) => {
+          if (error) console.error('Supabase demand request insert error:', error);
+        });
+    }
   };
 
   const updateApartment = (id: string, aptUpdates: Partial<Apartment>) => {
     setApartments(prev => prev.map(a => (a.id === id ? { ...a, ...aptUpdates } : a)));
+
+    if (supabase && isBackendConnected) {
+      const dbUpdates: any = {};
+      if (aptUpdates.name) dbUpdates.name = aptUpdates.name;
+      if (aptUpdates.rwaContact) dbUpdates.rwa_contact = aptUpdates.rwaContact;
+      if (aptUpdates.rwaPhone) dbUpdates.rwa_phone = aptUpdates.rwaPhone;
+      if (aptUpdates.rwaEmail) dbUpdates.rwa_email = aptUpdates.rwaEmail;
+      if (aptUpdates.status) dbUpdates.status = aptUpdates.status;
+      if (aptUpdates.notes !== undefined) dbUpdates.notes = aptUpdates.notes;
+      dbUpdates.updated_at = new Date().toISOString();
+
+      supabase
+        .from('apartments')
+        .update(dbUpdates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase apartment update error:', error);
+        });
+    }
   };
 
   const toggleApartmentStatus = (id: string) => {
-    setApartments(prev =>
-      prev.map(a => (a.id === id ? { ...a, status: a.status === 'active' ? 'inactive' : 'active' } : a))
-    );
+    const apt = apartments.find(a => a.id === id);
+    if (apt) {
+      updateApartment(id, { status: apt.status === 'active' ? 'inactive' : 'active' });
+    }
   };
 
   // Category Mutations
@@ -517,10 +705,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `cat-${Date.now()}`,
     };
     setCategories(prev => [...prev, newCat]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('service_categories')
+        .insert(mapCategoryToDb(newCat))
+        .then(({ error }) => {
+          if (error) console.error('Supabase category insert error:', error);
+        });
+    }
   };
 
   const toggleCategoryStatus = (id: string) => {
+    const cat = categories.find(c => c.id === id);
+    if (!cat) return;
+
     setCategories(prev => prev.map(c => (c.id === id ? { ...c, active: !c.active } : c)));
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('service_categories')
+        .update({ active: !cat.active })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase category toggle error:', error);
+        });
+    }
   };
 
   // Provider Mutations
@@ -533,10 +743,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setProviders(prev => [newProv, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('service_providers')
+        .insert(mapProviderToDb(newProv))
+        .then(({ error }) => {
+          if (error) console.error('Supabase provider insert error:', error);
+        });
+    }
   };
 
   const updateProvider = (id: string, provUpdates: Partial<ServiceProvider>) => {
     setProviders(prev => prev.map(p => (p.id === id ? { ...p, ...provUpdates } : p)));
+
+    if (supabase && isBackendConnected) {
+      const dbUpdates: any = {};
+      if (provUpdates.businessName) dbUpdates.business_name = provUpdates.businessName;
+      if (provUpdates.contactPerson) dbUpdates.contact_person = provUpdates.contactPerson;
+      if (provUpdates.phone) dbUpdates.phone = provUpdates.phone;
+      if (provUpdates.verificationStatus) dbUpdates.verification_status = provUpdates.verificationStatus;
+      dbUpdates.updated_at = new Date().toISOString();
+
+      supabase
+        .from('service_providers')
+        .update(dbUpdates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase provider update error:', error);
+        });
+    }
   };
 
   // Service Mutations
@@ -548,10 +784,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setServices(prev => [newSrv, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('services')
+        .insert(mapServiceToDb(newSrv))
+        .then(({ error }) => {
+          if (error) console.error('Supabase service insert error:', error);
+        });
+    }
   };
 
   const updateService = (id: string, srvUpdates: Partial<Service>) => {
     setServices(prev => prev.map(s => (s.id === id ? { ...s, ...srvUpdates } : s)));
+
+    if (supabase && isBackendConnected) {
+      const dbUpdates: any = {};
+      if (srvUpdates.name) dbUpdates.name = srvUpdates.name;
+      if (srvUpdates.normalPrice !== undefined) dbUpdates.normal_price = srvUpdates.normalPrice;
+      if (srvUpdates.communityPrice !== undefined) dbUpdates.community_price = srvUpdates.communityPrice;
+      if (srvUpdates.sundayBulkPrice !== undefined) dbUpdates.sunday_bulk_price = srvUpdates.sundayBulkPrice;
+      if (srvUpdates.status) dbUpdates.status = srvUpdates.status;
+      dbUpdates.updated_at = new Date().toISOString();
+
+      supabase
+        .from('services')
+        .update(dbUpdates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase service update error:', error);
+        });
+    }
   };
 
   // Booking Mutations
@@ -603,14 +866,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setBookings(prev => [newBooking, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('bookings')
+        .insert(mapBookingToDb(newBooking))
+        .then(({ error }) => {
+          if (error) console.error('Supabase booking insert error:', error);
+        });
+    }
+
     return newBooking;
   };
 
   const updateBookingStatus = (bookingId: string, status: BookingStatus, providerId?: string) => {
+    const matchedProv = providerId ? providers.find(p => p.id === providerId) : undefined;
+
     setBookings(prev =>
       prev.map(b => {
         if (b.id === bookingId) {
-          const matchedProv = providerId ? providers.find(p => p.id === providerId) : undefined;
           return {
             ...b,
             status,
@@ -623,6 +897,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return b;
       })
     );
+
+    if (supabase && isBackendConnected) {
+      const dbUpdates: any = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+      if (providerId) {
+        dbUpdates.provider_id = providerId;
+        if (matchedProv) {
+          dbUpdates.provider_name = matchedProv.businessName;
+          dbUpdates.provider_phone = matchedProv.phone;
+        }
+      }
+
+      supabase
+        .from('bookings')
+        .update(dbUpdates)
+        .eq('id', bookingId)
+        .then(({ error }) => {
+          if (error) console.error('Supabase booking status update error:', error);
+        });
+    }
   };
 
   const submitRWAApplication = (app: Omit<RWAPartnershipApplication, 'id' | 'status' | 'createdAt'>) => {
@@ -633,6 +929,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setRwaApplications(prev => [newApp, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('rwa_applications')
+        .insert(mapRWAApplicationToDb(newApp))
+        .then(({ error }) => {
+          if (error) console.error('Supabase RWA application insert error:', error);
+        });
+    }
   };
 
   const submitVendorApplication = (app: Omit<VendorApplication, 'id' | 'status' | 'createdAt'>) => {
@@ -643,6 +948,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setVendorApplications(prev => [newApp, ...prev]);
+
+    if (supabase && isBackendConnected) {
+      supabase
+        .from('vendor_applications')
+        .insert(mapVendorApplicationToDb(newApp))
+        .then(({ error }) => {
+          if (error) console.error('Supabase Vendor application insert error:', error);
+        });
+    }
   };
 
   const resetToDemoData = () => {
@@ -658,7 +972,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_KEYS.VENDORS);
 
     setApartments(INITIAL_APARTMENTS);
-    setSelectedApartmentId('apt-green-valley');
+    setSelectedApartmentId('community_green_valley_001');
     setCategories(INITIAL_CATEGORIES);
     setProviders(INITIAL_PROVIDERS);
     setServices(INITIAL_SERVICES);
@@ -674,6 +988,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         currentPath,
         navigate,
+        isBackendConnected,
         isAdminAuthenticated,
         loginAdmin,
         logoutAdmin,
