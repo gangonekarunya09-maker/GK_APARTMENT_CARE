@@ -109,13 +109,21 @@ composes `common` (Navbar/Footer) with `resident` views and global modals
 
 ## Deployment Notes (Vercel)
 
-- `vercel.json` uses a **negative-lookahead SPA rewrite** (`/((?!assets/).*)` → `/index.html`)
-  so static assets keep their cache headers while every route (`/c/:slug`, `/campaign/:token`,
-  `/admin`, …) falls back to `index.html` — deep links no longer 404 on refresh.
+- `vercel.json` uses the **standard Vercel SPA rewrite** (`"source": "/(.*)"` → `/index.html`).
+  Vercel checks the filesystem **before** applying rewrites, so `/assets/*` bundles and
+  `dist/vercel.json` are still served as real files; every non-file path (`/c/:slug/:token`,
+  `/campaign/:token`, `/admin`, …) falls back to `index.html` — deep links never 404.
+  Do **not** replace this with regex lookaheads (e.g. `/((?!assets/).*)`): Vercel's
+  path-to-regexp router silently matches nothing for that form, and every deep link
+  returns the edge `X-Vercel-Error: NOT_FOUND` while `/` keeps working — exactly the
+  production incident this config fixes.
 - The build **also emits `dist/vercel.json`** (via the `emitVercelConfig` plugin in
   `vite.config.ts`), so deployments made from the build output alone (static/CLI uploads)
   carry the SPA rewrite with them. Never deploy a bare `dist/` without it: unknown paths
   would hit Vercel's edge 404 (`X-Vercel-Error: NOT_FOUND`) before React loads.
+  Note: `vite dev` and `vite preview` apply their own SPA fallback, so this class of bug
+  can only be observed on a real Vercel deployment — test deep links there after any
+  routing-config change.
 - Communities are **DB-driven**: any `/c/:communitySlug/:token` resolves at runtime against
   the `apartments` table. No per-community Vercel routes or config are ever needed.
 - Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` must be set in the Vercel project;
