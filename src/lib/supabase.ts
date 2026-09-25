@@ -11,29 +11,47 @@ import {
   VendorApplication,
 } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const RAW_SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const RAW_SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+const isPlaceholderUrl =
+  !RAW_SUPABASE_URL ||
+  /^https:\/\/your-project\.supabase\.co\/?$/i.test(RAW_SUPABASE_URL) ||
+  RAW_SUPABASE_URL === 'https://example.supabase.co';
+
+const isPlaceholderKey =
+  !RAW_SUPABASE_ANON_KEY ||
+  RAW_SUPABASE_ANON_KEY.toLowerCase().startsWith('your-') ||
+  RAW_SUPABASE_ANON_KEY === 'MY_GEMINI_API_KEY';
+
+export const SUPABASE_CONFIG_ERROR = isPlaceholderUrl
+  ? 'VITE_SUPABASE_URL is missing or still set to the placeholder value.'
+  : isPlaceholderKey
+    ? 'VITE_SUPABASE_ANON_KEY is missing or still set to a placeholder value.'
+    : null;
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
-    supabaseUrl &&
-      supabaseAnonKey &&
-      supabaseUrl !== 'https://your-project.supabase.co' &&
-      supabaseUrl.startsWith('https://')
+    !SUPABASE_CONFIG_ERROR &&
+      RAW_SUPABASE_URL.startsWith('https://') &&
+      RAW_SUPABASE_ANON_KEY.length > 20
   );
 };
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+  ? createClient(RAW_SUPABASE_URL, RAW_SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        detectSessionInUrl: true,
       },
     })
   : null;
 
 /**
  * Data Mapping Helpers (Snake <-> Camel)
+ * Kept in one place so components never see raw DB rows.
+ * (Field-by-field audit vs supabase/schema.sql lives in the audit report.)
  */
 
 export function mapApartmentFromDb(data: any): Apartment {
@@ -198,7 +216,7 @@ export function mapCampaignFromDb(data: any): Campaign {
     communityPrice: Number(data.community_price ?? data.communityPrice ?? 0),
     sundayBulkPrice: data.sunday_bulk_price ? Number(data.sunday_bulk_price) : data.sundayBulkPrice,
     minimumDemand: Number(data.minimum_demand ?? data.minimumDemand ?? 5),
-    currentDemand: Number(data.current_demand ?? data.currentDemand ?? 0),
+    currentDemand: Number(data.current_demand ?? data.current_demand ?? data.currentDemand ?? 0),
     availableDates: data.available_dates || data.availableDates || [],
     availableSlots: data.available_slots || data.availableSlots || [],
     status: data.status,
@@ -217,13 +235,13 @@ export function mapCampaignToDb(camp: Campaign): any {
     service_id: camp.serviceId,
     normal_price: camp.normalPrice,
     community_price: camp.communityPrice,
-    sunday_bulk_price: camp.sundayBulkPrice,
+    sunday_bulk_price: camp.sundayBulkPrice ?? null,
     minimum_demand: camp.minimumDemand,
     current_demand: camp.currentDemand,
     available_dates: camp.availableDates,
     available_slots: camp.availableSlots,
     status: camp.status,
-    provider_id: camp.providerId,
+    provider_id: camp.providerId ?? null,
     notes: camp.notes,
     created_at: camp.createdAt,
     updated_at: camp.updatedAt || new Date().toISOString(),
@@ -311,7 +329,7 @@ export function mapBookingToDb(b: Booking): any {
     price: b.price,
     booking_type: b.bookingType,
     status: b.status,
-    provider_id: b.providerId,
+    provider_id: b.providerId ?? null,
     provider_name: b.providerName,
     provider_phone: b.providerPhone,
     notes: b.notes,

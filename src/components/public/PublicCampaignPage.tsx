@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Campaign } from '../../types';
+import { Campaign, Apartment, Service } from '../../types';
 import { Logo } from '../common/Logo';
 import {
   Building2,
@@ -14,23 +14,29 @@ import {
   Share2,
   Check,
   MessageCircle,
+  AlertCircle,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
+  apartment: Apartment;
+  service: Service;
 }
 
-export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({ campaign }) => {
-  const { apartments, services, submitResidentInterest } = useApp();
-
-  const apartment = apartments.find(a => a.id === campaign.apartmentId);
-  const service = services.find(s => s.id === campaign.serviceId);
+export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
+  campaign,
+  apartment,
+  service,
+}) => {
+  const { submitResidentInterest } = useApp();
 
   const [formOpen, setFormOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form fields
   const [fullName, setFullName] = useState('');
@@ -38,8 +44,10 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({ campaign
   const [block, setBlock] = useState('');
   const [flatNumber, setFlatNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [preferredDate, setPreferredDate] = useState(campaign.availableDates[0] || 'Upcoming Sunday');
-  const [preferredSlot, setPreferredSlot] = useState(campaign.availableSlots[0] || '09:00 AM – 11:00 AM');
+  const preferredDateInit = campaign.availableDates[0] || 'Upcoming Sunday';
+  const preferredSlotInit = campaign.availableSlots[0] || '09:00 AM – 11:00 AM';
+  const [preferredDate, setPreferredDate] = useState(preferredDateInit);
+  const [preferredSlot, setPreferredSlot] = useState(preferredSlotInit);
   const [notes, setNotes] = useState('');
 
   if (!service || !apartment) {
@@ -53,30 +61,43 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({ campaign
     );
   }
 
-  const percent = Math.min(100, Math.round((campaign.currentDemand / campaign.minimumDemand) * 100));
+  const safeMin = campaign.minimumDemand > 0 ? campaign.minimumDemand : 1;
+  const percent = Math.min(100, Math.round((campaign.currentDemand / safeMin) * 100));
   const needed = Math.max(0, campaign.minimumDemand - campaign.currentDemand);
   const isTargetReached = needed === 0;
   const savings = campaign.normalPrice - campaign.communityPrice;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !phone || !block || !flatNumber) return;
 
-    submitResidentInterest({
-      campaignId: campaign.id,
-      apartmentId: apartment.id,
-      residentName: fullName,
-      phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
-      block,
-      flatNumber,
-      email: email || undefined,
-      preferredDate,
-      preferredSlot,
-      notes: notes || undefined,
-    });
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await submitResidentInterest({
+        campaignId: campaign.id,
+        apartmentId: apartment.id,
+        residentName: fullName,
+        phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
+        block,
+        flatNumber,
+        email: email || undefined,
+        preferredDate,
+        preferredSlot,
+        notes: notes || undefined,
+      });
 
-    setSubmitted(true);
-    setFormOpen(false);
+      if (result.success) {
+        setSubmitted(true);
+        setFormOpen(false);
+      } else {
+        setSubmitError(result.error || 'Could not save your request. Please try again.');
+      }
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Unexpected error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -501,12 +522,20 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({ campaign
                   />
                 </div>
 
+                {submitError && (
+                  <div className="p-3 bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl text-xs text-[#DC2626] flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs transition-colors cursor-pointer"
+                    disabled={submitting}
+                    className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                   >
-                    Submit My Request
+                    {submitting ? 'Submitting…' : 'Submit My Request'}
                   </button>
                 </div>
               </form>

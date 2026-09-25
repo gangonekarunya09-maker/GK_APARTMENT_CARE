@@ -68,6 +68,7 @@ export const ApartmentsManager: React.FC = () => {
 
   // Form state for creating / editing community
   const [name, setName] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [city, setCity] = useState('Hyderabad');
   const [area, setArea] = useState('HITEC City');
   const [address, setAddress] = useState('');
@@ -94,6 +95,7 @@ export const ApartmentsManager: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingApt(null);
     setName('');
+    setSaveError(null);
     setCity('Hyderabad');
     setArea('Financial District');
     setAddress('');
@@ -111,6 +113,7 @@ export const ApartmentsManager: React.FC = () => {
   const handleOpenEdit = (apt: Apartment) => {
     setEditingApt(apt);
     setName(apt.name);
+    setSaveError(null);
     setCity(apt.city);
     setArea(apt.area);
     setAddress(apt.address);
@@ -125,45 +128,62 @@ export const ApartmentsManager: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setSaveError(null);
 
     if (editingApt) {
-      updateApartment(editingApt.id, {
-        name: name.trim(),
-        city: city.trim(),
-        area: area.trim(),
-        address: address.trim(),
-        pincode: pincode.trim(),
-        totalUnits: parseInt(totalUnits) || 100,
-        rwaContact: rwaContact.trim(),
-        rwaPhone: rwaPhone.trim(),
-        rwaEmail: rwaEmail.trim(),
-        gateSecurityApp,
-        status,
-        notes: notes.trim(),
-      });
-      setModalOpen(false);
+      try {
+        const res = await updateApartment(editingApt.id, {
+          name: name.trim(),
+          city: city.trim(),
+          area: area.trim(),
+          address: address.trim(),
+          pincode: pincode.trim(),
+          totalUnits: parseInt(totalUnits) || 100,
+          rwaContact: rwaContact.trim(),
+          rwaPhone: rwaPhone.trim(),
+          rwaEmail: rwaEmail.trim(),
+          gateSecurityApp,
+          status,
+          notes: notes.trim(),
+        });
+        if (!res.success) {
+          setSaveError(res.error || 'Could not save community.');
+          return;
+        }
+        setModalOpen(false);
+      } catch (err: any) {
+        setSaveError(err?.message || 'Could not save community.');
+      }
     } else {
-      const created = addApartment({
-        name: name.trim(),
-        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        portalToken: '',
-        city: city.trim(),
-        area: area.trim(),
-        address: address.trim(),
-        pincode: pincode.trim(),
-        totalUnits: parseInt(totalUnits) || 100,
-        rwaContact: rwaContact.trim(),
-        rwaPhone: rwaPhone.trim(),
-        rwaEmail: rwaEmail.trim(),
-        gateSecurityApp,
-        status,
-        notes: notes.trim(),
-      });
-      setModalOpen(false);
-      setJustCreatedApt(created);
+      try {
+        const result = await addApartment({
+          name: name.trim(),
+          slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          portalToken: '',
+          city: city.trim(),
+          area: area.trim(),
+          address: address.trim(),
+          pincode: pincode.trim(),
+          totalUnits: parseInt(totalUnits) || 100,
+          rwaContact: rwaContact.trim(),
+          rwaPhone: rwaPhone.trim(),
+          rwaEmail: rwaEmail.trim(),
+          gateSecurityApp,
+          status,
+          notes: notes.trim(),
+        });
+        if (!result.success || !result.data) {
+          setSaveError(result.error || 'Could not create community.');
+          return;
+        }
+        setModalOpen(false);
+        setJustCreatedApt(result.data);
+      } catch (err: any) {
+        setSaveError(err?.message || 'Could not create community.');
+      }
     }
   };
 
@@ -175,7 +195,7 @@ export const ApartmentsManager: React.FC = () => {
   };
 
   const handleOpenPortal = (apt: Apartment) => {
-    const path = `/c/${apt.slug}/${apt.portalToken || '7H4K92'}`;
+    const path = getCustomerPortalUrl(apt).replace(/^https?:\/\/[^/]+/, '') || `/c/${apt.slug}`;
     navigate(path);
   };
 
@@ -196,8 +216,11 @@ ${url}
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
-  const handleGeneratePortal = (apt: Apartment) => {
-    generateCustomerPortalToken(apt.id);
+  const handleGeneratePortal = async (apt: Apartment) => {
+    const res = await generateCustomerPortalToken(apt.id);
+    if (!res.success) {
+      console.error('Token generation failed:', res.error);
+    }
   };
 
   // Add campaign for this community
@@ -352,7 +375,7 @@ ${url}
               </h3>
             </div>
             <span className="text-xs font-mono font-bold bg-white px-2.5 py-0.5 rounded-md border border-[#2596be]/20 text-[#2596be] self-start sm:self-auto">
-              Token: {activeCommunity.portalToken || '7H4K92'}
+              Token: {activeCommunity.portalToken || '—'}
             </span>
           </div>
 
@@ -808,7 +831,7 @@ ${url}
                     <span>CUSTOMER PORTAL</span>
                   </div>
                   <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-[#2596be]/20 text-[#142326] font-bold">
-                    Token: {apt.portalToken || '7H4K92'}
+                    Token: {apt.portalToken || '—'}
                   </span>
                 </div>
 

@@ -38,6 +38,8 @@ export const BookingModal: React.FC = () => {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
 
   if (!bookingModalService) return null;
 
@@ -61,27 +63,39 @@ export const BookingModal: React.FC = () => {
     setStep(2);
   };
 
-  const handleConfirmBooking = (e: React.FormEvent) => {
+  const handleConfirmBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !phone || !flatNumber || !block) return;
 
-    const newBooking = createBooking({
-      serviceId: bookingModalService.id,
-      apartmentId: selectedApartment?.id || 'apt-green-valley',
-      residentName: fullName,
-      phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
-      email: email || undefined,
-      block,
-      flatNumber,
-      date: selectedDate,
-      slot: activeSlot,
-      price: currentPrice,
-      bookingType,
-      notes: notes || undefined,
-    });
+    setBookingError(null);
+    setBookingSubmitting(true);
+    try {
+      const result = await createBooking({
+        serviceId: bookingModalService.id,
+        apartmentId: selectedApartment?.id || 'apt-green-valley',
+        residentName: fullName,
+        phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
+        email: email || undefined,
+        block,
+        flatNumber,
+        date: selectedDate,
+        slot: activeSlot,
+        price: currentPrice,
+        bookingType,
+        notes: notes || undefined,
+      });
 
-    setCreatedBooking(newBooking);
-    setStep(3);
+      if (result.success && result.data) {
+        setCreatedBooking(result.data);
+        setStep(3);
+      } else {
+        setBookingError(result.error || 'Could not create booking. Please try again.');
+      }
+    } catch (err: any) {
+      setBookingError(err?.message || 'Unexpected error. Please try again.');
+    } finally {
+      setBookingSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -90,9 +104,10 @@ export const BookingModal: React.FC = () => {
     setCreatedBooking(null);
   };
 
+  const safeMinDemand = bookingModalService.minimumDemand > 0 ? bookingModalService.minimumDemand : 1;
   const percentBooked = Math.min(
     100,
-    Math.round((bookingModalService.currentDemand / bookingModalService.minimumDemand) * 100)
+    Math.round((bookingModalService.currentDemand / safeMinDemand) * 100)
   );
 
   return (
@@ -420,6 +435,12 @@ export const BookingModal: React.FC = () => {
                 />
               </div>
 
+              {bookingError && (
+                <div className="p-3 bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl text-xs text-[#DC2626]">
+                  {bookingError}
+                </div>
+              )}
+
               {/* Buttons */}
               <div className="pt-2 flex items-center gap-3">
                 <button
@@ -431,10 +452,11 @@ export const BookingModal: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white font-bold text-sm rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                  disabled={bookingSubmitting}
+                  className="flex-1 py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white font-bold text-sm rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-60"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Confirm Booking Request</span>
+                  <span>{bookingSubmitting ? 'Creating booking…' : 'Confirm Booking Request'}</span>
                 </button>
               </div>
             </motion.form>

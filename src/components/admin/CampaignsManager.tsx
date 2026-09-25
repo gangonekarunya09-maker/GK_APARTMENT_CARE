@@ -35,6 +35,7 @@ export const CampaignsManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form states for new campaign
+  const [createError, setCreateError] = useState<string | null>(null);
   const [selectedAptId, setSelectedAptId] = useState(apartments[0]?.id || '');
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id || '');
   const [minimumDemand, setMinimumDemand] = useState('20');
@@ -58,6 +59,7 @@ export const CampaignsManager: React.FC = () => {
   }
 
   const handleOpenCreate = () => {
+    setCreateError(null);
     setSelectedAptId(apartments[0]?.id || '');
     setSelectedServiceId(services[0]?.id || '');
     const srv = services[0];
@@ -81,20 +83,17 @@ export const CampaignsManager: React.FC = () => {
     }
   };
 
-  const handleSaveCampaign = (e: React.FormEvent) => {
+  const handleSaveCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     const apt = apartments.find(a => a.id === selectedAptId);
     const srv = services.find(s => s.id === selectedServiceId);
     if (!apt || !srv) return;
 
-    // Generate unique short token
-    const token = Math.random().toString(36).substring(2, 8).toUpperCase();
-
     const dates = availableDates.split(',').map(s => s.trim()).filter(Boolean);
     const slots = availableSlots.split(',').map(s => s.trim()).filter(Boolean);
 
-    const created = createCampaign({
-      token,
+    const result = await createCampaign({
+      token: '', // token generated server-side / by crypto helper
       apartmentId: selectedAptId,
       serviceId: selectedServiceId,
       normalPrice: parseFloat(normalPrice) || 1000,
@@ -107,8 +106,13 @@ export const CampaignsManager: React.FC = () => {
       notes,
     });
 
+    if (!result.success || !result.data) {
+      setCreateError(result.error || 'Could not create campaign.');
+      return;
+    }
+
     setModalOpen(false);
-    setActiveCampaignId(created.id);
+    setActiveCampaignId(result.data.id);
   };
 
   const filteredCampaigns = campaigns.filter(c => {
@@ -319,6 +323,12 @@ export const CampaignsManager: React.FC = () => {
               </div>
 
               <form onSubmit={handleSaveCampaign} className="p-5 overflow-y-auto space-y-4 max-h-[75vh]">
+                {createError && (
+                  <div className="p-3 bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl text-xs text-[#DC2626]">
+                    {createError}
+                  </div>
+                )}
+
                 {/* Step 1: Select Apartment */}
                 <div>
                   <label className="block text-xs font-bold text-[#142326] mb-1">

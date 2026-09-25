@@ -29,21 +29,31 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface CommunityCustomerPortalProps {
   apartment: Apartment;
+  /** Campaigns scoped to this community (passed by the route loader). */
+  campaigns: Campaign[];
+  /** Services related to those campaigns (passed by the route loader). */
+  services: Service[];
+  /** Requests used for the status lookup (admin/resident mode only). */
+  residentRequests?: ResidentRequest[];
+  /** Whether the request-status lookup should be offered (anonymous link mode: false). */
+  allowLookup?: boolean;
 }
 
-export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = ({ apartment }) => {
-  const {
-    services,
-    campaigns,
-    residentRequests,
-    submitResidentInterest,
-    getCustomerPortalUrl
-  } = useApp();
+export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = ({
+  apartment,
+  campaigns,
+  services,
+  residentRequests = [],
+  allowLookup = false,
+}) => {
+  const { submitResidentInterest, getCustomerPortalUrl } = useApp();
 
   // Interest Modal state
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [interestModalOpen, setInterestModalOpen] = useState(false);
   const [interestSubmitted, setInterestSubmitted] = useState<ResidentRequest | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form State matching Section 9 specification
   const [residentName, setResidentName] = useState('');
@@ -72,28 +82,41 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
     setSelectedCampaign(camp);
     setPreferredSlot(camp.availableSlots[0] || '09:00 AM – 11:00 AM');
     setInterestSubmitted(null);
+    setSubmitError(null);
     setInterestModalOpen(true);
   };
 
-  const handleInterestSubmit = (e: React.FormEvent) => {
+  const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCampaign || !residentName.trim() || !phone.trim() || !flatNumber.trim()) return;
 
-    // Section 10: "The request must be saved to the application's shared data...
-    // Both customer portal and admin portal use the SAME campaign data!"
-    const newReq = submitResidentInterest({
-      campaignId: selectedCampaign.id,
-      apartmentId: apartment.id,
-      residentName: residentName.trim(),
-      phone: phone.trim(),
-      block: block.trim() || 'Block A',
-      flatNumber: flatNumber.trim(),
-      preferredDate: selectedCampaign.availableDates[0] || 'Sunday',
-      preferredSlot: preferredSlot || selectedCampaign.availableSlots[0] || '09:00 AM – 11:00 AM',
-      notes: notes.trim(),
-    });
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      // Section 10: "The request must be saved to the application's shared data...
+      // Both customer portal and admin portal use the SAME campaign data!"
+      const result = await submitResidentInterest({
+        campaignId: selectedCampaign.id,
+        apartmentId: apartment.id,
+        residentName: residentName.trim(),
+        phone: phone.trim(),
+        block: block.trim() || 'Block A',
+        flatNumber: flatNumber.trim(),
+        preferredDate: selectedCampaign.availableDates[0] || 'Sunday',
+        preferredSlot: preferredSlot || selectedCampaign.availableSlots[0] || '09:00 AM – 11:00 AM',
+        notes: notes.trim(),
+      });
 
-    setInterestSubmitted(newReq);
+      if (result.success && result.data) {
+        setInterestSubmitted(result.data);
+      } else {
+        setSubmitError(result.error || 'Could not save your request. Please try again.');
+      }
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Unexpected error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleLookupSubmit = (e: React.FormEvent) => {
@@ -244,7 +267,8 @@ ${portalUrl}
             <div className="space-y-4">
               {communityCampaigns.map(camp => {
                 const srv = getServiceForCampaign(camp);
-                const percent = Math.min(100, Math.round((camp.currentDemand / camp.minimumDemand) * 100));
+                const safeMin = camp.minimumDemand > 0 ? camp.minimumDemand : 1;
+                const percent = Math.min(100, Math.round((camp.currentDemand / safeMin) * 100));
                 const needed = Math.max(0, camp.minimumDemand - camp.currentDemand);
                 const isTargetReached = camp.currentDemand >= camp.minimumDemand;
 
@@ -347,304 +371,238 @@ ${portalUrl}
         </section>
 
         {/* 4. Resident Booking / Request Status Lookup (Isolated to this apartment) */}
-        <section className="p-5 bg-white rounded-3xl border border-[#E5E7EB] shadow-xs space-y-3">
-          <div>
-            <h3 className="text-sm font-bold text-[#142326]">Check Your Request Status</h3>
-            <p className="text-xs text-[#667085]">
-              Enter your Flat Number or Mobile Number to check requests in {apartment.name}
-            </p>
-          </div>
+        {allowLookup && (
+          <section className="p-5 bg-white rounded-3xl border border-[#E5E7EB] shadow-xs space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#142326]">Check Your Request Status</h3>
+              <p className="text-xs text-[#667085]">
+                Enter your Flat Number or Mobile Number to check requests in {apartment.name}
+              </p>
+            </div>
 
-          <form onSubmit={handleLookupSubmit} className="flex gap-2">
-            <input
-              type="text"
-              required
-              value={lookupQuery}
-              onChange={e => setLookupQuery(e.target.value)}
-              placeholder="e.g. B-204 or 9876543210"
-              className="flex-1 px-3.5 py-2 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#142326] hover:bg-[#2596be] text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0"
-            >
-              Lookup
-            </button>
-          </form>
+            <form onSubmit={handleLookupSubmit} className="flex gap-2">
+              <input
+                type="text"
+                required
+                value={lookupQuery}
+                onChange={e => setLookupQuery(e.target.value)}
+                placeholder="e.g. B-204 or 9876543210"
+                className="flex-1 px-3.5 py-2 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#142326] hover:bg-[#2596be] text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0"
+              >
+                Check
+              </button>
+            </form>
 
-          {searchedRequests !== null && (
-            <div className="space-y-2 pt-2">
-              {searchedRequests.length > 0 ? (
-                searchedRequests.map(req => {
-                  const camp = campaigns.find(c => c.id === req.campaignId);
-                  const srv = camp ? getServiceForCampaign(camp) : undefined;
-
-                  return (
-                    <div
-                      key={req.id}
-                      className="p-3 bg-[#F8F9FA] rounded-xl border border-[#2596be]/20 text-xs space-y-1"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-[#142326]">{srv?.name || 'Service'}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-[#2596be]/10 text-[#2596be]">
-                          {req.status}
+            {searchedRequests && (
+              <div className="space-y-2">
+                {searchedRequests.length === 0 ? (
+                  <p className="text-xs text-[#667085] p-3 bg-[#F8F9FA] rounded-xl">
+                    No requests found for "{lookupQuery}". If you haven't registered interest yet, pick a service above.
+                  </p>
+                ) : (
+                  searchedRequests.map(r => (
+                    <div key={r.id} className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#142326]">{r.residentName} · Flat {r.flatNumber}</span>
+                        <span className="px-2 py-0.5 bg-[#2596be]/10 text-[#2596be] rounded font-bold uppercase text-[10px]">
+                          {r.status}
                         </span>
                       </div>
-                      <div className="text-[#667085] text-[11px]">
-                        Resident: {req.residentName} · Flat: {req.block} - {req.flatNumber}
-                      </div>
-                      <div className="text-[#667085] text-[11px]">
-                        Preferred: {req.preferredDate || 'Sunday'} ({req.preferredSlot})
-                      </div>
+                      <p className="text-[#667085]">{r.preferredDate} · {r.preferredSlot}</p>
                     </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-[#DC2626] font-semibold text-center py-2">
-                  No matching request found for {lookupQuery} in {apartment.name}.
-                </p>
-              )}
-            </div>
-          )}
-        </section>
+                  ))
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
-        {/* 5. WhatsApp Share Box */}
-        <section className="p-4 bg-gradient-to-r from-[#25D366]/10 to-[#2596be]/10 rounded-3xl border border-[#25D366]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <h3 className="text-xs font-black text-[#142326]">
-              Share with {apartment.name} Neighbors
-            </h3>
-            <p className="text-[11px] text-[#667085]">
-              Pool requests with other flats in your society to reach targets faster!
-            </p>
+        {/* 5. Footer trust block */}
+        <section className="p-4 bg-white rounded-3xl border border-[#E5E7EB] shadow-xs text-[11px] text-[#667085] space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-[#142326] text-xs">
+            <ShieldCheck className="w-4 h-4 text-[#2596be]" />
+            <span>Pre-cleared with {apartment.gateSecurityApp} · Verified providers only</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyLink}
-              className="px-3 py-1.5 bg-white text-[#142326] border border-[#E5E7EB] rounded-xl text-xs font-bold cursor-pointer transition-colors"
-            >
-              {copiedLink ? 'Copied!' : 'Copy Link'}
-            </button>
-            <button
-              onClick={handleShareWhatsApp}
-              className="px-3.5 py-1.5 bg-[#25D366] hover:bg-[#1ebd5a] text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
-            </button>
-          </div>
+          <p>
+            Questions? Reach your community desk or write to care@gkapartmentcare.com.
+          </p>
         </section>
       </main>
 
-      {/* Clean Footer */}
-      <footer className="border-t border-[#E5E7EB] bg-white py-5 px-4 text-center text-xs text-[#667085] space-y-1">
-        <div className="font-bold text-[#142326]">
-          GK APARTMENT CARE · {apartment.name}
-        </div>
-        <p className="text-[11px]">
-          Direct doorstep fulfillment · Pre-cleared on {apartment.gateSecurityApp}
-        </p>
-      </footer>
-
-      {/* Section 9: "I'M INTERESTED" Simple Modal Form */}
+      {/* Modal / Sheet for "I'M INTERESTED" Form */}
       <AnimatePresence>
         {interestModalOpen && selectedCampaign && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl border border-[#E5E7EB] shadow-2xl max-w-md w-full overflow-hidden text-[#142326]"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="bg-white rounded-t-3xl sm:rounded-2xl border border-[#E5E7EB] shadow-xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden"
             >
-              {interestSubmitted ? (
-                /* Success Screen (Section 10 Confirmation) */
-                <div className="p-6 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-7 h-7" />
+              <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-[#2596be] tracking-wider">
+                    {apartment.name}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-[#142326]">Interest Registered!</h3>
-                    <p className="text-xs text-[#667085] mt-1">
-                      Your request for <strong>{selectedCampaign.serviceId.replace('srv-', '').replace('-', ' ').toUpperCase()}</strong> has been added to the {apartment.name} community pool.
-                    </p>
+                  <h3 className="text-base font-bold text-[#142326]">
+                    Register Interest · {getServiceForCampaign(selectedCampaign)?.name || 'Service'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setInterestModalOpen(false)}
+                  className="p-1.5 text-[#667085] hover:bg-[#F8F9FA] rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {interestSubmitted ? (
+                <div className="p-6 space-y-3 text-center">
+                  <div className="w-12 h-12 rounded-full bg-[#2E8B57] text-white mx-auto flex items-center justify-center">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-base font-bold text-[#142326]">You're on the list!</h4>
+                  <p className="text-xs text-[#667085] leading-relaxed">
+                    Your interest has been recorded for <strong>{selectedCampaign.currentDemand} / {selectedCampaign.minimumDemand}</strong>. We'll coordinate with neighbors and confirm the visit once the community target is reached.
+                  </p>
+                  <button
+                    onClick={() => setInterestModalOpen(false)}
+                    className="w-full py-2.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleInterestSubmit} className="p-5 overflow-y-auto space-y-3.5 max-h-[75vh]">
+                  {/* Community notice - locked to this apartment */}
+                  <div className="p-2.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex items-center justify-between text-xs">
+                    <span className="text-[#667085]">Community:</span>
+                    <span className="font-bold text-[#142326]">{apartment.name}</span>
                   </div>
 
-                  <div className="p-4 bg-[#F8F9FA] rounded-2xl border border-[#E5E7EB] text-xs text-left space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-[#667085]">Flat &amp; Block:</span>
-                      <span className="font-bold text-[#142326]">{interestSubmitted.block}, Flat {interestSubmitted.flatNumber}</span>
+                  {submitError && (
+                    <div className="p-3 bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl text-xs text-[#DC2626] flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{submitError}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#667085]">Resident Name:</span>
-                      <span className="font-bold text-[#142326]">{interestSubmitted.residentName}</span>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#142326] mb-1">
+                      Full Name <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={residentName}
+                      onChange={e => setResidentName(e.target.value)}
+                      placeholder="e.g. Rahul Kumar"
+                      className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#142326] mb-1">
+                      Mobile / WhatsApp Number <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-[#667085] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="98765 43210"
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#667085]">Community Price:</span>
-                      <span className="font-bold text-[#2596be]">₹{selectedCampaign.communityPrice}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#142326] mb-1">
+                        Tower / Block
+                      </label>
+                      <input
+                        type="text"
+                        value={block}
+                        onChange={e => setBlock(e.target.value)}
+                        placeholder="e.g. Tower B"
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
+                      />
                     </div>
-                    <div className="flex justify-between border-t border-[#E5E7EB] pt-1.5">
-                      <span className="text-[#667085]">Updated Demand:</span>
-                      <span className="font-black text-[#2E8B57]">
-                        {selectedCampaign.currentDemand} / {selectedCampaign.minimumDemand} requests
-                      </span>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#142326] mb-1">
+                        Flat Number <span className="text-[#DC2626]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={flatNumber}
+                        onChange={e => setFlatNumber(e.target.value)}
+                        placeholder="e.g. 204"
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
+                      />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#142326] mb-1">
+                      Preferred Slot
+                    </label>
+                    <select
+                      value={preferredSlot}
+                      onChange={e => setPreferredSlot(e.target.value)}
+                      className="w-full px-2.5 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#142326]"
+                    >
+                      {(selectedCampaign.availableSlots.length > 0
+                        ? selectedCampaign.availableSlots
+                        : ['09:00 AM – 11:00 AM']
+                      ).map(s => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#142326] mb-1">
+                      Notes or Vehicle / Unit details (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      placeholder="e.g. Car model, parking bay number, or floor..."
+                      className="w-full px-3.5 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs text-[#142326]"
+                    />
                   </div>
 
                   <div className="pt-2">
                     <button
-                      onClick={() => setInterestModalOpen(false)}
-                      className="w-full py-2.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                     >
-                      Done
+                      {submitting ? 'Submitting…' : 'Submit My Request'}
                     </button>
                   </div>
-                </div>
-              ) : (
-                /* Simple Form: Name, Phone, Block, Flat Number, Preferred Slot, Optional Notes */
-                <>
-                  <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex items-center justify-between">
-                    <div>
-                      <h3 className="font-extrabold text-base text-[#142326]">
-                        Register Interest
-                      </h3>
-                      <p className="text-xs text-[#2596be] font-bold">
-                        {getServiceForCampaign(selectedCampaign)?.name || 'Service'} · {apartment.name}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setInterestModalOpen(false)}
-                      className="p-1.5 text-[#667085] hover:bg-[#F8F9FA] rounded-lg cursor-pointer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleInterestSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
-                    {/* Price and Demand summary */}
-                    <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[#667085] block text-[11px]">Community Rate:</span>
-                        <span className="font-black text-base text-[#2596be]">
-                          ₹{selectedCampaign.communityPrice}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[#667085] block text-[11px]">Demand:</span>
-                        <span className="font-bold text-[#142326]">
-                          {selectedCampaign.currentDemand} / {selectedCampaign.minimumDemand} flats
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Resident Details */}
-                    <div>
-                      <label className="block text-xs font-bold text-[#142326] mb-1">
-                        Full Name <span className="text-[#DC2626]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={residentName}
-                        onChange={e => setResidentName(e.target.value)}
-                        placeholder="e.g. Rahul Kumar"
-                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-[#142326] mb-1">
-                        Phone Number (+91) <span className="text-[#DC2626]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                        placeholder="98765 43210"
-                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-[#142326] mb-1">
-                          Block / Tower <span className="text-[#DC2626]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={block}
-                          onChange={e => setBlock(e.target.value)}
-                          placeholder="e.g. Tower B"
-                          className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#142326] mb-1">
-                          Flat Number <span className="text-[#DC2626]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={flatNumber}
-                          onChange={e => setFlatNumber(e.target.value)}
-                          placeholder="e.g. 204"
-                          className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-[#142326] mb-1">
-                        Preferred Slot
-                      </label>
-                      <select
-                        value={preferredSlot}
-                        onChange={e => setPreferredSlot(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                      >
-                        {selectedCampaign.availableSlots.map((s, idx) => (
-                          <option key={idx} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-[#142326] mb-1">
-                        Optional Notes / Parking Slot
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={notes}
-                        onChange={e => setNotes(e.target.value)}
-                        placeholder="e.g. White Creta parked at basement slot B-14..."
-                        className="w-full px-3.5 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be]"
-                      />
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setInterestModalOpen(false)}
-                        className="px-4 py-2 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-[#667085] hover:bg-[#F8F9FA] cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-5 py-2.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-                      >
-                        Submit Request
-                      </button>
-                    </div>
-                  </form>
-                </>
+                </form>
               )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      <footer className="p-4 text-center text-xs text-[#667085] border-t border-[#E5E7EB] bg-white">
+        © {new Date().getFullYear()} GK APARTMENT CARE · Coordinated Community Services
+      </footer>
     </div>
   );
 };

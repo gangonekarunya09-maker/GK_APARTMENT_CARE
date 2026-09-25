@@ -1,10 +1,6 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { resolveRoute, isAdminPath } from './lib/router';
 import { Navbar } from './components/common/Navbar';
 import { Hero } from './components/resident/Hero';
 import { ServiceCatalog } from './components/resident/ServiceCatalog';
@@ -15,144 +11,392 @@ import { VendorOnboardingView } from './components/resident/VendorOnboardingView
 import { BookingModal } from './components/resident/BookingModal';
 import { WhatsAppShareModal } from './components/resident/WhatsAppShareModal';
 import { MobileStickyCTA } from './components/resident/MobileStickyCTA';
+import { SocietySelectorModal } from './components/resident/SocietySelectorModal';
 import { Footer } from './components/common/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { PublicCampaignPage } from './components/public/PublicCampaignPage';
 import { CommunityCustomerPortal } from './components/public/CommunityCustomerPortal';
 
+/* ------------------------------------------------------------------ */
+/* Public route data loader                                            */
+/* ------------------------------------------------------------------ */
+
+interface LoadedCampaign {
+  campaign: import('./types').Campaign;
+  apartment: import('./types').Apartment | null;
+  service: import('./types').Service | null;
+}
+
+interface LoadedPortal {
+  apartment: import('./types').Apartment;
+  campaigns: import('./types').Campaign[];
+  services: import('./types').Service[];
+}
+
+/**
+ * Full-screen status panel shared by all public routes (loading / error / demo banner).
+ * Kept intentionally simple and styled like the existing app.
+ */
+const StatusPanel: React.FC<{
+  tone: 'loading' | 'error' | 'warn';
+  title: string;
+  message: string;
+  onRetry?: () => void;
+  onHome?: () => void;
+}> = ({ tone, title, message, onRetry, onHome }) => {
+  const accent =
+    tone === 'error' ? '#DC2626' : tone === 'warn' ? '#F59E0B' : '#2596be';
+  return (
+    <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-3xl border border-[#E5E7EB] text-center max-w-sm w-full space-y-3 shadow-xs">
+        <div
+          className="w-10 h-10 rounded-2xl mx-auto flex items-center justify-center text-white text-lg font-bold"
+          style={{ backgroundColor: accent }}
+        >
+          {tone === 'loading' ? '…' : tone === 'error' ? '!' : 'i'}
+        </div>
+        <p className="text-sm font-bold text-[#142326]">{title}</p>
+        <p className="text-xs text-[#667085] leading-relaxed">{message}</p>
+        <div className="flex flex-col gap-2 pt-1">
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="w-full py-2.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              Try Again
+            </button>
+          )}
+          {onHome && (
+            <button
+              onClick={onHome}
+              className="w-full py-2.5 bg-white border border-[#E5E7EB] hover:bg-[#F8F9FA] text-[#142326] text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              Go to Homepage
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CampaignRoute: React.FC<{ token: string }> = ({ token }) => {
+  const { fetchCampaignByToken, services, apartments } = useApp();
+  const [state, setState] = React.useState<
+    { status: 'loading' } | { status: 'ready'; data: LoadedCampaign } | { status: 'error'; message: string }
+  >({ status: 'loading' });
+  const [attempt, setAttempt] = React.useState(0);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading' });
+
+    (async () => {
+      const res = await fetchCampaignByToken(token);
+      if (cancelled) return;
+      if (!res.success || !res.data) {
+        setState({ status: 'error', message: res.error || 'Campaign not found.' });
+        return;
+      }
+      const campaign = res.data;
+
+      let apartment: import('./types').Apartment | null = null;
+      let service: import('./types').Service | null = null;
+
+      try {
+        const { supabase, isSupabaseConfigured, mapApartmentFromDb, mapServiceFromDb } =
+          await import('./lib/supabase');
+        if (supabase && isSupabaseConfigured()) {
+          // Scoped fetches: only the two rows this campaign page needs.
+          const [{ data: aptRows }, { data: svcRows }] = await Promise.all([
+            supabase.from('apartments').select('*').eq('id', campaign.apartmentId).limit(1),
+            supabase.from('services').select('*').eq('id', campaign.serviceId).limit(1),
+          ]);
+          apartment = aptRows && aptRows.length > 0 ? mapApartmentFromDb(aptRows[0]) : null;
+          service = svcRows && svcRows.length > 0 ? mapServiceFromDb(svcRows[0]) : null;
+        } else {
+          // Demo mode: resolve from seeded/local collections.
+          apartment = apartments.find(a => a.id === campaign.apartmentId) || null;
+          service = services.find(s => s.id === campaign.serviceId) || null;
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setState({
+            status: 'error',
+            message: err?.message || 'Could not load campaign details.',
+          });
+        }
+        return;
+      }
+
+      if (cancelled) return;
+      setState({ status: 'ready', data: { campaign, apartment, service } });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, attempt]);
+
+  if (state.status === 'loading') {
+    return (
+      <StatusPanel
+        tone="loading"
+        title="Loading campaign…"
+        message="Fetching the latest community campaign details."
+      />
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <StatusPanel
+        tone="error"
+        title="Campaign Unavailable"
+        message={state.message}
+        onRetry={() => setAttempt(a => a + 1)}
+        onHome={() => (window.location.href = '/')}
+      />
+    );
+  }
+
+  const { campaign, apartment, service } = state.data;
+  if (!apartment || !service) {
+    return (
+      <StatusPanel
+        tone="error"
+        title="Campaign Data Incomplete"
+        message="This campaign exists but its service or community details could not be loaded. It may have been unpublished."
+        onRetry={() => setAttempt(a => a + 1)}
+        onHome={() => (window.location.href = '/')}
+      />
+    );
+  }
+
+  return <PublicCampaignPage campaign={campaign} apartment={apartment} service={service} />;
+};
+
+const CommunityPortalRoute: React.FC<{
+  slug: string | null;
+  token: string | null;
+}> = ({ slug, token }) => {
+  const { fetchApartmentForPortal, campaigns, services, residentRequests } = useApp();
+  const isLinkMode = Boolean(slug || token);
+
+  const [state, setState] = React.useState<
+    { status: 'loading' } | { status: 'ready'; data: LoadedPortal } | { status: 'error'; message: string }
+  >({ status: 'loading' });
+  const [attempt, setAttempt] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!isLinkMode) {
+      // Resident "community" tab: use the already-loaded collections.
+      setState({ status: 'ready', data: { apartment: null as any, campaigns: [], services: [] } });
+      return;
+    }
+    let cancelled = false;
+    setState({ status: 'loading' });
+
+    (async () => {
+      const res = await fetchApartmentForPortal(slug, token);
+      if (cancelled) return;
+      if (!res.success || !res.data) {
+        setState({ status: 'error', message: res.error || 'Community not found.' });
+        return;
+      }
+      const apartment = res.data;
+
+      // Scoped public fetches — only this community's campaigns + their services.
+      let communityCampaigns: import('./types').Campaign[] = [];
+      let portalServices: import('./types').Service[] = [];
+
+      try {
+        const { supabase, isSupabaseConfigured, mapCampaignFromDb, mapServiceFromDb } =
+          await import('./lib/supabase');
+        if (supabase && isSupabaseConfigured()) {
+          const { data: campRows, error: campErr } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('apartment_id', apartment.id)
+            .order('created_at', { ascending: false });
+          if (campErr) throw new Error(campErr.message);
+          communityCampaigns = (campRows || []).map((r: any) => mapCampaignFromDb(r));
+
+          const serviceIds = Array.from(
+            new Set(communityCampaigns.map(c => c.serviceId).filter(Boolean))
+          );
+          if (serviceIds.length > 0) {
+            const { data: svcRows } = await supabase
+              .from('services')
+              .select('*')
+              .in('id', serviceIds as string[]);
+            portalServices = (svcRows || []).map((r: any) => mapServiceFromDb(r));
+          }
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setState({
+            status: 'error',
+            message: err?.message || 'Could not load services for this community.',
+          });
+        }
+        return;
+      }
+
+      if (cancelled) return;
+      setState({
+        status: 'ready',
+        data: { apartment, campaigns: communityCampaigns, services: portalServices },
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, token, isLinkMode, attempt]);
+
+  // Resident tab mode: derive from global collections for the selected community.
+  const tabApartment = useApp().selectedApartment;
+  if (!isLinkMode) {
+    if (!tabApartment) {
+      return (
+        <StatusPanel
+          tone="warn"
+          title="No Community Selected"
+          message="Choose your community from the navigation to see its services."
+        />
+      );
+    }
+    return (
+      <CommunityCustomerPortal
+        apartment={tabApartment}
+        campaigns={campaigns.filter(c => c.apartmentId === tabApartment.id)}
+        services={services}
+        residentRequests={residentRequests}
+        allowLookup
+      />
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <StatusPanel
+        tone="loading"
+        title="Loading community portal…"
+        message="Fetching services and campaigns for this community."
+      />
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <StatusPanel
+        tone="error"
+        title="Community Portal Unavailable"
+        message={state.message}
+        onRetry={() => setAttempt(a => a + 1)}
+        onHome={() => (window.location.href = '/')}
+      />
+    );
+  }
+
+  return (
+    <CommunityCustomerPortal
+      apartment={state.data.apartment}
+      campaigns={state.data.campaigns}
+      services={state.data.services}
+      residentRequests={[]}
+      allowLookup={false}
+    />
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Router                                                              */
+/* ------------------------------------------------------------------ */
+
 const AppRouter: React.FC = () => {
   const {
     currentPath,
     isAdminAuthenticated,
-    apartments,
-    campaigns,
+    isAdminReady,
+    isBackendConnected,
+    dataStatus,
+    dataError,
+    reloadAll,
     services,
     setBookingModalService,
     residentTab,
     setResidentTab,
-    selectedApartment,
-    setSelectedApartmentId,
   } = useApp();
 
-  // Check if current URL is a Community Customer Portal link
-  const matchedCommunity = useMemo(() => {
-    // 1. Query parameters: ?c=token_or_slug or ?community=id_or_slug
-    const searchParams = new URLSearchParams(window.location.search);
-    const queryCommunity = searchParams.get('c') || searchParams.get('community');
-    if (queryCommunity) {
-      const match = apartments.find(
-        a =>
-          a.id === queryCommunity ||
-          a.slug === queryCommunity ||
-          (a.portalToken && a.portalToken.toLowerCase() === queryCommunity.toLowerCase())
+  const route = useMemo(
+    () => resolveRoute(currentPath, window.location.search),
+    [currentPath]
+  );
+
+  const admin = useMemo(
+    () => isAdminPath(currentPath, window.location.search),
+    [currentPath]
+  );
+
+  /* ---------------- Admin routes ---------------- */
+  if (admin.isAdmin) {
+    if (!isBackendConnected) {
+      return (
+        <StatusPanel
+          tone="warn"
+          title="Admin Portal Requires Supabase"
+          message="Administrator sign-in is disabled because the Supabase backend is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable the operations portal."
+          onHome={() => (window.location.href = '/')}
+        />
       );
-      if (match) return match;
     }
-
-    // 2. Path: /c/:communitySlug/:token or /c/:communitySlug
-    const pathParts = currentPath.split('/').filter(Boolean);
-    if (pathParts[0] === 'c' && pathParts[1]) {
-      const slugOrToken = pathParts[1];
-      const secondPart = pathParts[2];
-      const match = apartments.find(
-        a =>
-          a.slug === slugOrToken ||
-          a.id === slugOrToken ||
-          (a.portalToken && a.portalToken.toLowerCase() === slugOrToken.toLowerCase()) ||
-          (secondPart && a.portalToken && a.portalToken.toLowerCase() === secondPart.toLowerCase())
+    if (!isAdminReady) {
+      return (
+        <StatusPanel
+          tone="loading"
+          title="Checking your session…"
+          message="Verifying administrator credentials with Supabase Auth."
+        />
       );
-      if (match) return match;
     }
-
-    // 3. Path: /community-portal/:id
-    if (pathParts[0] === 'community-portal' && pathParts[1]) {
-      const match = apartments.find(a => a.id === pathParts[1] || a.slug === pathParts[1]);
-      if (match) return match;
-    }
-
-    return null;
-  }, [currentPath, apartments]);
-
-  // Check if current URL is a Campaign link (WhatsApp shared link)
-  const matchedCampaign = useMemo(() => {
-    // 1. Query parameter token: ?token=ABC123 or ?campaign=ABC123
-    const searchParams = new URLSearchParams(window.location.search);
-    const queryToken = searchParams.get('token') || searchParams.get('campaign');
-    if (queryToken) {
-      const match = campaigns.find(
-        c => c.token.toLowerCase() === queryToken.toLowerCase() || c.id === queryToken
-      );
-      if (match) return match;
-    }
-
-    // 2. Path: /community/:communitySlug/:serviceSlug/:token
-    const pathParts = currentPath.split('/').filter(Boolean);
-    if (pathParts[0] === 'community' && pathParts.length >= 4) {
-      const token = pathParts[3];
-      const match = campaigns.find(
-        c => c.token.toLowerCase() === token.toLowerCase() || c.id === token
-      );
-      if (match) return match;
-    }
-
-    // 3. Path: /campaign/:token or /book/:token
-    if ((pathParts[0] === 'campaign' || pathParts[0] === 'book') && pathParts[1]) {
-      const token = pathParts[1];
-      const match = campaigns.find(
-        c => c.token.toLowerCase() === token.toLowerCase() || c.id === token
-      );
-      if (match) return match;
-    }
-
-    return null;
-  }, [currentPath, campaigns]);
-
-  // Support legacy service deep-linking on mount: ?service=...
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const serviceParam = params.get('service');
-    if (serviceParam && !matchedCampaign && !matchedCommunity) {
-      const match = services.find(
-        s => s.id === serviceParam || s.name.toLowerCase().includes(serviceParam.toLowerCase())
-      );
-      if (match) {
-        setBookingModalService(match);
-      }
-    }
-  }, [services, setBookingModalService, matchedCampaign, matchedCommunity]);
-
-  // Sync selectedApartmentId if URL points to a specific community or campaign
-  useEffect(() => {
-    if (matchedCommunity && matchedCommunity.id !== selectedApartment?.id) {
-      setSelectedApartmentId(matchedCommunity.id);
-    } else if (matchedCampaign && matchedCampaign.apartmentId !== selectedApartment?.id) {
-      setSelectedApartmentId(matchedCampaign.apartmentId);
-    }
-  }, [matchedCommunity, matchedCampaign, selectedApartment?.id, setSelectedApartmentId]);
-
-  // 1. If URL matches a community campaign link: render ONLY the Public Campaign Page
-  if (matchedCampaign) {
-    return <PublicCampaignPage campaign={matchedCampaign} />;
-  }
-
-  // 2. If URL matches a community customer portal: render dedicated Community Customer Portal
-  if (matchedCommunity) {
-    return <CommunityCustomerPortal apartment={matchedCommunity} />;
-  }
-
-  // 3. If URL is in /admin namespace
-  const isAdminRoute = currentPath.startsWith('/admin') || new URLSearchParams(window.location.search).get('admin') === 'true';
-  if (isAdminRoute) {
-    // If not authenticated or on login path, render Admin Login screen
-    if (!isAdminAuthenticated || currentPath === '/admin/login') {
+    if (!isAdminAuthenticated || admin.isLoginPath) {
       return <AdminLogin />;
     }
-    // Authenticated admin accessing dashboard
     return <AdminDashboard />;
   }
 
-  // 4. Default Public Resident Experience (No admin buttons or private controls exposed)
+  /* ---------------- Campaign routes ---------------- */
+  if (route.kind === 'campaign' && route.campaignToken) {
+    return <CampaignRoute token={route.campaignToken} />;
+  }
+
+  /* ---------------- Community portal routes ---------------- */
+  if (route.kind === 'community') {
+    // Missing token with slug-only path is allowed (portal resolves by slug).
+    if (!route.communitySlug && !route.communityToken && !route.communityIdOrSlug) {
+      return (
+        <StatusPanel
+          tone="error"
+          title="Invalid Community Link"
+          message="This URL does not point to a valid community portal."
+          onHome={() => (window.location.href = '/')}
+        />
+      );
+    }
+    return (
+      <CommunityPortalRoute
+        slug={route.communitySlug || route.communityIdOrSlug}
+        token={route.communityToken}
+      />
+    );
+  }
+
+  /* ---------------- Default resident experience ---------------- */
   const handleScrollToCatalog = () => {
     setResidentTab('services');
     setTimeout(() => {
@@ -177,7 +421,10 @@ const AppRouter: React.FC = () => {
 
       <main className="flex-1">
         {residentTab === 'community' && (
-          <CommunityCustomerPortal apartment={selectedApartment || apartments[0]} />
+          <CommunityPortalRoute
+            slug={null}
+            token={null}
+          />
         )}
 
         {residentTab === 'services' && (
@@ -204,6 +451,22 @@ const AppRouter: React.FC = () => {
       {/* Global interactive modals */}
       <BookingModal />
       <WhatsAppShareModal />
+      <SocietySelectorModal />
+
+      {/* Demo-mode banner: production data comes from Supabase */}
+      {dataStatus === 'demo' && (
+        <div className="fixed bottom-16 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-xl text-[11px] text-[#92600a] font-semibold shadow-xs max-w-[92vw] text-center">
+          Demo mode — connect Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) to load live community data.
+        </div>
+      )}
+      {dataStatus === 'error' && (
+        <div className="fixed bottom-16 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-2 bg-[#DC2626]/10 border border-[#DC2626]/30 rounded-xl text-[11px] text-[#DC2626] font-semibold shadow-xs max-w-[92vw] text-center">
+          {dataError || 'Failed to load data.'}{' '}
+          <button onClick={() => void reloadAll()} className="underline cursor-pointer">
+            Retry
+          </button>
+        </div>
+      )}
     </div>
   );
 };
