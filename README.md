@@ -38,7 +38,7 @@ then promote your operator account with `SELECT public.add_admin('<auth-user-uui
 ```
 ├── index.html               Vite entry HTML (loads /src/main.tsx)
 ├── vite.config.ts           Build config, @/ path alias, HMR flags
-├── vercel.json              Vercel deployment: SPA rewrite "/((?!assets/).*)" → /index.html
+├── vercel.json              Vercel deployment: SPA rewrite "/(.*)" → /index.html
 │                            (keeps /c/... and /campaign/... deep links working on refresh)
 ├── supabase-schema.sql      Copy of the DB schema (run supabase/schema.sql instead)
 ├── src/                     Application source → see src/README.md

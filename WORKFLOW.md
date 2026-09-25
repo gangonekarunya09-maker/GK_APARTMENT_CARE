@@ -40,7 +40,7 @@ ASCII:
                      │     User opens a URL     │
                      └────────────┬─────────────┘
                                   ▼
-        Vercel rewrite "/((?!assets/).*)" → /index.html   (assets keep cache headers)
+        Vercel rewrite "/(.*)" → /index.html              (assets keep cache headers)
                                   ▼
                      main.tsx → <AppProvider> → App.tsx
                                   ▼
