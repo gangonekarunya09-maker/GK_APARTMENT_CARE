@@ -32,9 +32,14 @@
   `submitVendorApplication`. Each applies an optimistic local update, rolls it back on
   failure, and returns the error for inline display.
 - **Scoped fetchers for public pages** — `fetchApartmentForPortal(slugOrToken, token?)` and
-  `fetchCampaignByToken(token)` resolve portal/campaign links with targeted queries
-  (community slugs/tokens match `apartments` only; campaign tokens match `campaigns` only)
-  instead of loading all tables.
+  `fetchCampaignByToken(token)` resolve portal/campaign links with targeted queries.
+  Portal lookup enforces **strict slug+token pairing**: when both are present, one
+  `.eq('slug', …).eq('portal_token', …)` query must match the SAME row, so a valid token
+  under a wrong (or revoked) slug can never load another community. Community slugs/tokens
+  match `apartments` only; campaign tokens match `campaigns` only.
+- **`addApartment`** assigns a collision-free slug (`my-home-bhooja`, `my-home-bhooja-2`,
+  …) and a portal token via `src/lib/ids.ts`, so newly created communities are immediately
+  routable at `/c/:slug/:token` with zero config changes.
 - **Modal/UI state** — `bookingModalService`, `shareModalService`, `trackingBooking`,
   `societySelectorOpen`.
 
@@ -48,8 +53,10 @@
 2. **Demo mode** (no/placeholder env vars): hydrates from the empty seed arrays in
    `src/data/mockData.ts` and keeps state **in memory only** — nothing is written to
    `localStorage`. `resetToDemoData()` restores the baseline seeds in this mode (no-op in
-   Supabase mode). Collections never persist to localStorage anymore; the only persisted
-   keys are UI preferences (`STORAGE_KEYS`: `SELECTED_APT`, `ADMIN_SECTION`).
+   Supabase mode). Collections never persist to localStorage; the only persisted key is the
+   admin UI section (`STORAGE_KEYS.ADMIN_SECTION`). Community selection is **session-scoped**
+   by design — it is never restored from storage, so the root landing page can never
+   auto-enter a previously selected community.
    There is no fallback share token (e.g. the old `'7H4K92'`) — portal URLs always come
    from real rows.
 

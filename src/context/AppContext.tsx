@@ -104,6 +104,8 @@ interface AppContextType {
   selectedApartmentId: string;
   setSelectedApartmentId: (id: string) => void;
   selectedApartment: Apartment | undefined;
+  /** True once the visitor explicitly entered the resident experience this session. */
+  hasExplicitCommunity: boolean;
 
   // Data collections
   apartments: Apartment[];
@@ -209,7 +211,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  SELECTED_APT: 'gk_selected_apt_v2',
+  // Community selection is session-scoped (see selectedApartmentId) —
+  // only the admin UI section persists across visits.
   ADMIN_SECTION: 'gk_admin_section_v2',
 };
 
@@ -406,17 +409,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [isBackendConnected, loadSupabaseData]);
 
-  /* ---------------- Selected apartment ---------------- */
-  const [selectedApartmentId, setSelectedApartmentId] = useState<string>(() => {
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const queryCommunity = searchParams.get('c') || searchParams.get('community');
-      if (queryCommunity) return '';
-      return localStorage.getItem(STORAGE_KEYS.SELECTED_APT) || '';
-    } catch {
-      return '';
-    }
-  });
+  /* ---------------- Selected apartment (session-scoped) ---------------- */
+  // Deliberately NOT restored from localStorage: the root landing page must
+  // never auto-enter a previously selected community. Selection happens only
+  // via an explicit user action and lives for the current session.
+  const [selectedApartmentId, setSelectedApartmentId] = useState<string>('');
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -428,18 +425,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [rwaApplications, setRwaApplications] = useState<RWAPartnershipApplication[]>([]);
   const [vendorApplications, setVendorApplications] = useState<VendorApplication[]>([]);
 
-  useEffect(() => {
-    try {
-      if (selectedApartmentId) {
-        localStorage.setItem(STORAGE_KEYS.SELECTED_APT, selectedApartmentId);
-      }
-    } catch {
-      // ignore
-    }
-  }, [selectedApartmentId]);
+  // NOTE: community selection is session-scoped by design — nothing persisted.
 
-  const selectedApartment =
-    apartments.find(a => a.id === selectedApartmentId) || apartments[0];
+  // No silent default: the root landing page must never impersonate a community
+  // (previously this fell back to `apartments[0]`, branding `/` as whichever
+  // community sorted first). A community is only "selected" through an explicit
+  // user action (SocietySelectorModal) or an explicit /c/:slug/:token URL.
+  const selectedApartment = selectedApartmentId
+    ? apartments.find(a => a.id === selectedApartmentId)
+    : undefined;
+
+  // True once the visitor has explicitly chosen a community this session
+  // (landing-page picker / SocietySelectorModal). Selection is session-scoped:
+  // localStorage restore was removed so the root landing page never impersonates
+  // a previously selected community.
+  const hasExplicitCommunity = Boolean(selectedApartment);
 
   /* ---------------- Admin section (UI state only) ---------------- */
   const [adminSection, setAdminSection] = useState<string>(() => {
@@ -509,12 +509,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchApartmentForPortal = useCallback(
     async (slugOrToken: string | null, token: string | null): Promise<MutationResult<Apartment>> => {
       if (!supabase || !isBackendConnected) {
-        // Demo mode: resolve against seed data only.
+        // Demo mode: resolve against seed data only. Strict slug+token pairing:
+        // a valid token under a wrong slug must NOT load the community.
         const pool = apartments.length ? apartments : INITIAL_APARTMENTS;
         const match = pool.find(
           a =>
-            (slugOrToken && (a.slug === slugOrToken || a.id === slugOrToken)) ||
-            (token && a.portalToken && a.portalToken.toLowerCase() === token.toLowerCase())
+            Boolean(
+              slugOrToken &&
+                token &&
+                (a.slug === slugOrToken || a.id === slugOrToken) &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === token.toLowerCase()
+            ) ||
+            Boolean(slugOrToken && !token && (a.slug === slugOrToken || a.id === slugOrToken)) ||
+            Boolean(
+              token &&
+                !slugOrToken &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === token.toLowerCase()
+            )
         );
         if (!match) {
           return { success: false, error: 'Community not found. Please check your link.' };
@@ -525,7 +538,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         let query = supabase.from('apartments').select('*').limit(1);
         if (token && slugOrToken) {
-          query = query.or(`slug.eq.${slugOrToken},portal_token.eq.${token}`);
+          // Strict pairing: slug AND token must match the SAME row, so a valid
+          // portal token under a wrong slug can never load another community.
+          query = query.eq('slug', slugOrToken).eq('portal_token', token);
         } else if (token) {
           query = query.eq('portal_token', token);
         } else if (slugOrToken) {
@@ -834,7 +849,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (apt: Omit<Apartment, 'id' | 'createdAt'>): Promise<MutationResult<Apartment>> => {
       if (!apt.name?.trim()) return { success: false, error: 'Community name is required.' };
 
-      const baseSlug = apt.slug?.trim() || slugify(apt.name);
+      // Collision-free slug: two communities named "My Home Bhooja" must get
+      // my-home-bhooja and my-home-bhooja-2, never two rows with the same URL.
+      const base = slugify(apt.slug?.trim() || apt.name) || 'community';
+      const taken = new Set(apartments.map(a => a.slug));
+      let baseSlug = base;
+      let suffix = 2;
+      while (taken.has(baseSlug)) {
+        baseSlug = `${base}-${suffix++}`;
+      }
       const id = generateId('community');
       const newApt: Apartment = {
         ...apt,
@@ -854,7 +877,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { success: true, data: newApt };
     },
-    [runDb]
+    [apartments, runDb]
   );
 
   const updateApartment = useCallback(
@@ -1337,6 +1360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedApartmentId,
         setSelectedApartmentId,
         selectedApartment,
+        hasExplicitCommunity,
 
         apartments,
         categories,

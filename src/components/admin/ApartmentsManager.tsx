@@ -691,37 +691,63 @@ ${url}
         </button>
       </div>
 
-      {/* Just Created Success Banner */}
+      {/* Just Created Success Banner — shows the generated portal URL with
+          copy / open / share actions. URL is origin-derived at runtime
+          (localhost in dev, the Vercel domain in production). */}
       <AnimatePresence>
         {justCreatedApt && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-4 bg-[#2E8B57]/10 border border-[#2E8B57]/20 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+            className="p-4 bg-[#2E8B57]/10 border border-[#2E8B57]/20 rounded-2xl flex flex-col gap-3 text-xs"
           >
-            <div>
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-bold text-[#2E8B57]">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Community Created: {justCreatedApt.name}</span>
+                <span>Community Created Successfully: {justCreatedApt.name}</span>
               </div>
-              <p className="text-[#142326] mt-0.5">
-                Internal ID: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-[#2E8B57]/30 font-bold">{justCreatedApt.id}</code> • Unique Customer Portal Generated!
-              </p>
+              <button
+                onClick={() => setJustCreatedApt(null)}
+                className="p-1.5 text-[#667085] hover:text-[#142326] rounded-md"
+                aria-label="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex items-center gap-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#667085] mb-1">
+                Customer Portal
+              </p>
+              <code className="block font-mono bg-white px-2.5 py-2 rounded-lg border border-[#2E8B57]/30 text-[#142326] break-all">
+                {getCustomerPortalUrl(justCreatedApt)}
+              </code>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => handleCopyLink(justCreatedApt)}
                 className="px-3 py-1.5 bg-white border border-[#2E8B57]/30 hover:bg-[#2E8B57]/10 text-[#2E8B57] font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Public Link</span>
+                {copiedToken === justCreatedApt.id ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                <span>{copiedToken === justCreatedApt.id ? 'Copied!' : 'Copy Link'}</span>
               </button>
               <button
-                onClick={() => setJustCreatedApt(null)}
-                className="p-1.5 text-[#667085] hover:text-[#142326] rounded-md"
+                onClick={() => handleOpenPortal(justCreatedApt)}
+                className="px-3 py-1.5 bg-[#2E8B57] hover:bg-[#24724a] text-white font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
               >
-                <X className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open Portal</span>
+              </button>
+              <button
+                onClick={() => handleShareWhatsApp(justCreatedApt)}
+                className="px-3 py-1.5 bg-white border border-[#2E8B57]/30 hover:bg-[#2E8B57]/10 text-[#2E8B57] font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Share on WhatsApp</span>
               </button>
             </div>
           </motion.div>

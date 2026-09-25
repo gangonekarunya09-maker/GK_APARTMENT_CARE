@@ -13,7 +13,7 @@ a config-error panel when Supabase is not configured.
 | `AdminDashboard.tsx` | Layout shell: mounts `AdminSidebar` (desktop + mobile drawer) and switches the main panel based on the `adminSection` context value. |
 | `AdminSidebar.tsx` | Navigation with live counts for each section; logout and "Reset Demo Data" (no-op when connected to Supabase). |
 | `AdminOverview.tsx` | "Dashboard" landing panel with KPI cards and recent activity. |
-| `ApartmentsManager.tsx` | CRUD for communities; generates customer-portal tokens/links via `generateCustomerPortalToken` (tokens from `src/lib/ids.ts`) with awaitable mutations and inline errors; drills into a community's campaigns via `CampaignDetail`. |
+| `ApartmentsManager.tsx` | CRUD for communities; generates customer-portal tokens/links via `generateCustomerPortalToken` (tokens from `src/lib/ids.ts`) with awaitable mutations and inline errors; after creation shows a success banner with the origin-derived portal URL (`${window.location.origin}/c/:slug/:token`) plus Copy Link / Open Portal / Share on WhatsApp actions; drills into a community's campaigns via `CampaignDetail`. |
 | `ServicesManager.tsx` | CRUD for services incl. pricing tiers (normal / community / Sunday bulk), availability, and status. |
 | `CategoriesManager.tsx` | CRUD for service categories. |
 | `ProvidersManager.tsx` | CRUD for verified service providers. |

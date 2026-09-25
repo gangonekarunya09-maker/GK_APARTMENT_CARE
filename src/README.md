@@ -30,7 +30,11 @@ Resolution priority:
 3. **Admin namespace** — `/admin*` (or `?admin=true`) → `admin/AdminLogin` until
    `isAdminReady` becomes true via Supabase Auth, then `admin/AdminDashboard`. Blocked with
    a config-error panel when Supabase env vars are missing/placeholder.
-4. **Default resident experience** — `common/Navbar` + one of the `resident` tab views
+4. **Root landing page (`/`)** — general/new visitors get a dedicated GK Apartment Care
+   landing page (Logo, community picker entry via `SocietySelectorModal`, Operator Login
+   link). The resident storefront opens only after an explicit community choice — never
+   automatically, and never from a previously selected (localStorage) community.
+5. **Default resident experience** — `common/Navbar` + one of the `resident` tab views
    (`services`, `community`, `my-bookings`, `rwa`, `vendor`) + `common/Footer`, with the
    global modals `BookingModal`, `WhatsAppShareModal`, and `SocietySelectorModal` mounted.
 

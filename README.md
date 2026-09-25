@@ -112,5 +112,11 @@ composes `common` (Navbar/Footer) with `resident` views and global modals
 - `vercel.json` uses a **negative-lookahead SPA rewrite** (`/((?!assets/).*)` → `/index.html`)
   so static assets keep their cache headers while every route (`/c/:slug`, `/campaign/:token`,
   `/admin`, …) falls back to `index.html` — deep links no longer 404 on refresh.
+- The build **also emits `dist/vercel.json`** (via the `emitVercelConfig` plugin in
+  `vite.config.ts`), so deployments made from the build output alone (static/CLI uploads)
+  carry the SPA rewrite with them. Never deploy a bare `dist/` without it: unknown paths
+  would hit Vercel's edge 404 (`X-Vercel-Error: NOT_FOUND`) before React loads.
+- Communities are **DB-driven**: any `/c/:communitySlug/:token` resolves at runtime against
+  the `apartments` table. No per-community Vercel routes or config are ever needed.
 - Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` must be set in the Vercel project;
   a placeholder/missing value surfaces as a config-error panel, not a blank page.
