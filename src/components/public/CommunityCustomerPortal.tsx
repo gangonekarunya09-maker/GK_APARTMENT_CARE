@@ -54,6 +54,10 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
   const [interestSubmitted, setInterestSubmitted] = useState<ResidentRequest | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Campaigns this resident has already registered interest for (detected via
+  // the duplicate-interest result; the server enforces the same rule).
+  const [registeredCampaignIds, setRegisteredCampaignIds] = useState<Set<string>>(new Set());
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   // Form State matching Section 9 specification
   const [residentName, setResidentName] = useState('');
@@ -83,6 +87,7 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
     setPreferredSlot(camp.availableSlots[0] || '09:00 AM – 11:00 AM');
     setInterestSubmitted(null);
     setSubmitError(null);
+    setAlreadyRegistered(false);
     setInterestModalOpen(true);
   };
 
@@ -109,7 +114,12 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
 
       if (result.success && result.data) {
         setInterestSubmitted(result.data);
+        setRegisteredCampaignIds(prev => new Set(prev).add(selectedCampaign.id));
       } else {
+        if (result.alreadyRegistered) {
+          setAlreadyRegistered(true);
+          setRegisteredCampaignIds(prev => new Set(prev).add(selectedCampaign.id));
+        }
         setSubmitError(result.error || 'Could not save your request. Please try again.');
       }
     } catch (err: any) {
@@ -356,13 +366,20 @@ ${portalUrl}
                     </div>
 
                     {/* Core CTA: [ I'M INTERESTED ] (Section 9 specification) */}
-                    <button
-                      onClick={() => handleOpenInterest(camp)}
-                      className="w-full py-3 px-4 bg-[#2596be] hover:bg-[#1e7ca0] active:scale-[0.99] text-white text-xs sm:text-sm font-black rounded-2xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <span>I'M INTERESTED</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                    {registeredCampaignIds.has(camp.id) ? (
+                      <div className="w-full py-3 px-4 bg-[#2E8B57]/10 border border-[#2E8B57]/30 text-[#2E8B57] text-xs sm:text-sm font-black rounded-2xl flex items-center justify-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>ALREADY REGISTERED</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenInterest(camp)}
+                        className="w-full py-3 px-4 bg-[#2596be] hover:bg-[#1e7ca0] active:scale-[0.99] text-white text-xs sm:text-sm font-black rounded-2xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>I'M INTERESTED</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -483,6 +500,13 @@ ${portalUrl}
                     <span className="text-[#667085]">Community:</span>
                     <span className="font-bold text-[#142326]">{apartment.name}</span>
                   </div>
+
+                  {alreadyRegistered && (
+                    <div className="p-3 bg-[#2596be]/10 border border-[#2596be]/20 rounded-xl text-xs text-[#2596be] flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>You have already expressed interest in this service.</span>
+                    </div>
+                  )}
 
                   {submitError && (
                     <div className="p-3 bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl text-xs text-[#DC2626] flex items-start gap-2">

@@ -248,6 +248,55 @@ END
 $$;
 
 -- ====================================================================
+-- 2C. MIGRATION v2 -> v3: UNIQUE RESIDENT INTEREST PER CAMPAIGN
+-- ====================================================================
+-- A resident may express interest in a campaign only ONCE. Resident identity
+-- is the project's existing free-text fields (phone + block + flat_number);
+-- there is no resident account system. phone is normalized to digits only
+-- because historic rows mix "9876543210" and "+91 98765 43210" formats.
+--
+-- The generated dedupe_key + partial UNIQUE index make the DATABASE the final
+-- guard against concurrent duplicates (SQLSTATE 23505) even on the legacy
+-- plain-INSERT path. Idempotent: safe to re-run; existing duplicates are
+-- collapsed automatically (earliest row wins) so the index can always be
+-- created. Campaign-scoped only: demand-poll rows (campaign_id IS NULL) are
+-- never constrained, and the same resident can join DIFFERENT campaigns.
+
+-- 2C.1 Collapse existing duplicates, keeping the EARLIEST request per identity.
+--      Demand counters are not auto-corrected; a one-time manual re-sync is
+--      provided in the comment below if exact counts are wanted.
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY campaign_id, apartment_id,
+      right(regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'), 10),
+      lower(coalesce(block, '')), lower(coalesce(flat_number, ''))
+    ORDER BY submitted_at ASC, id ASC
+  ) AS rn
+  FROM resident_requests
+  WHERE campaign_id IS NOT NULL
+)
+DELETE FROM resident_requests r
+USING ranked
+WHERE r.id = ranked.id AND ranked.rn > 1;
+
+-- Optional one-time demand re-sync after dedupe (run manually if desired):
+--   UPDATE campaigns c SET current_demand = (
+--     SELECT count(*) FROM resident_requests r WHERE r.campaign_id = c.id
+--   );
+
+-- 2C.2 Computed identity key + unique partial index.
+ALTER TABLE resident_requests ADD COLUMN IF NOT EXISTS dedupe_key TEXT
+  GENERATED ALWAYS AS (
+    right(regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'), 10)
+    || '|' || lower(coalesce(block, ''))
+    || '|' || lower(coalesce(flat_number, ''))
+  ) STORED;
+
+CREATE UNIQUE INDEX IF NOT EXISTS resident_requests_campaign_resident_uniq
+  ON resident_requests (campaign_id, apartment_id, dedupe_key)
+  WHERE campaign_id IS NOT NULL;
+
+-- ====================================================================
 -- 3. ADMIN ALLOW-LIST (server-side authorization)
 -- ====================================================================
 -- A user is an admin iff their auth.users id is listed in admin_users.
@@ -423,45 +472,99 @@ CREATE POLICY "admin_read_admin_users" ON admin_users
   FOR SELECT TO authenticated USING (public.is_admin());
 
 -- ====================================================================
--- 6. PUBLIC RPC — atomic demand increment for campaign pages
+-- 6. PUBLIC RPC — atomic, duplicate-safe demand increment
 -- ====================================================================
 -- Public campaign pages call this instead of writing to campaigns directly.
--- It atomically increments current_demand, flips status at the target and
--- returns the fresh row — no enumeration, no racing increments.
+-- Inside one transaction (campaign row locked FOR UPDATE) it:
+--   1. checks whether the SAME resident (normalized phone + block + flat)
+--      already has a request for this campaign — if so, returns the current
+--      campaign row with .duplicate = true and changes NOTHING (no insert,
+--      no demand increment);
+--   2. otherwise inserts the request AND increments current_demand (flipping
+--      status at the target), returning the fresh row with .duplicate = false.
+-- SECURITY DEFINER is required because anonymous visitors have no SELECT
+-- rights on resident_requests (RLS v2) — the duplicate check runs with
+-- elevated rights without exposing any other resident's data to the client.
+-- (Return shape changed in v3: JSONB { duplicate, campaign } instead of the
+-- bare campaigns row — hence the DROP below.)
+DROP FUNCTION IF EXISTS public.increment_campaign_demand(TEXT, JSONB);
+
 CREATE OR REPLACE FUNCTION public.increment_campaign_demand(
   p_campaign_id TEXT,
   p_request JSONB
 )
-RETURNS campaigns
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
   v_campaign campaigns;
+  v_phone TEXT;
+  v_block TEXT;
+  v_flat TEXT;
+  v_existing TEXT;
+  v_duplicate BOOLEAN := false;
 BEGIN
   SELECT * INTO v_campaign FROM campaigns WHERE id = p_campaign_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'campaign_not_found';
   END IF;
 
-  INSERT INTO resident_requests (
-    id, campaign_id, apartment_id, resident_name, phone, block,
-    flat_number, email, preferred_date, preferred_slot, notes, status
-  ) VALUES (
-    COALESCE(p_request->>'id', 'req-' || encode(gen_random_bytes(12), 'hex')),
-    v_campaign.id,
-    v_campaign.apartment_id,
-    COALESCE(p_request->>'residentName', 'Unknown'),
-    COALESCE(p_request->>'phone', ''),
-    COALESCE(p_request->>'block', 'Block A'),
-    COALESCE(p_request->>'flatNumber', ''),
-    NULLIF(p_request->>'email', ''),
-    NULLIF(p_request->>'preferredDate', ''),
-    NULLIF(p_request->>'preferredSlot', ''),
-    NULLIF(p_request->>'notes', ''),
-    'interested'
+  -- Normalized identity (same rule as the dedupe_key column in Section 2C):
+  -- digits-only phone, last 10 digits, so "+91 98765 43210" == "9876543210".
+  v_phone := right(regexp_replace(coalesce(p_request->>'phone', ''), '[^0-9]', '', 'g'), 10);
+  v_block := lower(coalesce(p_request->>'block', ''));
+  v_flat  := lower(coalesce(p_request->>'flatNumber', ''));
+
+  SELECT id INTO v_existing
+  FROM resident_requests
+  WHERE campaign_id = v_campaign.id
+    AND apartment_id = v_campaign.apartment_id
+    AND right(regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'), 10) = v_phone
+    AND lower(coalesce(block, '')) = v_block
+    AND lower(coalesce(flat_number, '')) = v_flat
+  LIMIT 1;
+
+  IF v_existing IS NOT NULL THEN
+    v_duplicate := true;  -- duplicate interest: no insert, no demand increment
+  ELSE
+    INSERT INTO resident_requests (
+      id, campaign_id, apartment_id, resident_name, phone, block,
+      flat_number, email, preferred_date, preferred_slot, notes, status
+    ) VALUES (
+      COALESCE(p_request->>'id', 'req-' || encode(gen_random_bytes(12), 'hex')),
+      v_campaign.id,
+      v_campaign.apartment_id,
+      COALESCE(p_request->>'residentName', 'Unknown'),
+      v_phone,
+      COALESCE(p_request->>'block', 'Block A'),
+      COALESCE(p_request->>'flatNumber', ''),
+      NULLIF(p_request->>'email', ''),
+      NULLIF(p_request->>'preferredDate', ''),
+      NULLIF(p_request->>'preferredSlot', ''),
+      NULLIF(p_request->>'notes', ''),
+      'interested'
+    );
+
+    UPDATE campaigns
+    SET current_demand = current_demand + 1,
+        status = CASE
+          WHEN current_demand + 1 >= minimum_demand AND status = 'collecting_demand'
+            THEN 'target_reached'::text
+          ELSE status
+        END,
+        updated_at = NOW()
+    WHERE id = v_campaign.id
+    RETURNING * INTO v_campaign;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'duplicate', v_duplicate,
+    'campaign', to_jsonb(v_campaign)
   );
+END;
+$$;
 
   UPDATE campaigns
   SET current_demand = current_demand + 1,

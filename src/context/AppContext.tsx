@@ -70,6 +70,8 @@ export interface MutationResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  /** True when the resident already expressed interest in this campaign. */
+  alreadyRegistered?: boolean;
 }
 
 interface AppContextType {
@@ -725,8 +727,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { success: false, error: 'Name, phone, and flat number are required.' };
       }
 
+      // Resident identity = the project's existing fields (phone + block + flat)
+      // scoped to the campaign. Normalize so "+91 98765 43210", "09876543210" and
+      // "9876543210" are the same resident (digits only, last 10 digits); block/flat
+      // compare trimmed + case-insensitively (same rule as the dedupe_key column
+      // in supabase/schema.sql Section 2C).
+      const normalizedPhone = requestData.phone.replace(/[^0-9]/g, '').slice(-10);
+      const normalizedBlock = (requestData.block || '').trim();
+      const normalizedFlat = requestData.flatNumber.trim().toLowerCase();
+
+      if (!supabase || !isBackendConnected) {
+        // Demo mode: enforce one-interest-per-campaign locally (before the
+        // optimistic demand bump so a duplicate never inflates the counter).
+        const existing = residentRequests.find(
+          r =>
+            r.campaignId === requestData.campaignId &&
+            r.phone.replace(/[^0-9]/g, '').slice(-10) === normalizedPhone &&
+            (r.block || '').trim().toLowerCase() === normalizedBlock.toLowerCase() &&
+            r.flatNumber.trim().toLowerCase() === normalizedFlat
+        );
+        if (existing) {
+          return {
+            success: false,
+            alreadyRegistered: true,
+            error: 'You have already expressed interest in this service.',
+          };
+        }
+      }
+
+      if (supabase && isBackendConnected) {
+        // Application-level duplicate check before ANY write or demand change.
+        // Under the secure RLS v2 model anonymous reads return no rows
+        // (USING (false)), so this is a harmless no-op there — the RPC and the
+        // Section 2C unique index are the real guards. On legacy permissive
+        // databases the read is allowed and blocks the duplicate client-side.
+        const { data: existingRows } = await supabase
+          .from('resident_requests')
+          .select('phone, block, flat_number')
+          .eq('campaign_id', requestData.campaignId)
+          .limit(500);
+        const isDuplicate = (existingRows || []).some(
+          (r: any) =>
+            String(r.phone || '').replace(/[^0-9]/g, '').slice(-10) === normalizedPhone &&
+            String(r.block || '').trim().toLowerCase() === normalizedBlock.toLowerCase() &&
+            String(r.flat_number || '').trim().toLowerCase() === normalizedFlat
+        );
+        if (isDuplicate) {
+          return {
+            success: false,
+            alreadyRegistered: true,
+            error: 'You have already expressed interest in this service.',
+          };
+        }
+      }
+
       const newReq: ResidentRequest = {
         ...requestData,
+        phone: normalizedPhone,
+        block: normalizedBlock || 'Block A',
+        flatNumber: requestData.flatNumber.trim(),
         id: generateId('req'),
         status: 'interested',
         submittedAt: new Date().toISOString(),
@@ -774,11 +833,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       let campRow: any = null;
+      let duplicateInterest = false;
       const { data: rpcData, error } = await supabase.rpc(
         'increment_campaign_demand',
         rpcPayload
       );
-      campRow = rpcData;
+      // v3 RPC returns { duplicate, campaign }; an older v2 RPC (pre-dedupe)
+      // returned the bare campaigns row — accept both so deploy order never
+      // breaks interest submission.
+      if (rpcData && typeof rpcData === 'object' && 'campaign' in rpcData) {
+        duplicateInterest = Boolean((rpcData as any).duplicate);
+        campRow = (rpcData as any).campaign;
+      } else {
+        campRow = rpcData;
+      }
+
+      // Duplicate interest (v3 RPC): nothing was written server-side — roll
+      // back the optimistic bump and tell the resident they are registered.
+      if (duplicateInterest) {
+        setCampaigns(prev =>
+          prev.map(c =>
+            c.id === requestData.campaignId
+              ? { ...c, currentDemand: Math.max(0, c.currentDemand - 1) }
+              : c
+          )
+        );
+        return {
+          success: false,
+          alreadyRegistered: true,
+          error: 'You have already expressed interest in this service.',
+        };
+      }
 
       // Legacy-schema fallback: databases that have not run the v2 migration do
       // not have the RPC (404 PGRST202). There the old permissive RLS still
@@ -800,9 +885,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           );
           return {
             success: false,
+            ...(ins.error.code === '23505' ? { alreadyRegistered: true } : {}),
             error:
               ins.error.code === '23503'
                 ? 'This campaign is no longer accepting interest.'
+                : ins.error.code === '23505'
+                ? 'You have already expressed interest in this service.'
                 : ins.error.message || 'Could not save your request. Please try again.',
           };
         }
@@ -849,7 +937,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { success: true, data: saved };
     },
-    [campaigns, isBackendConnected]
+    [campaigns, residentRequests, isBackendConnected]
   );
 
   /* ---------------- Apartment mutations ---------------- */

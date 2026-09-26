@@ -34,6 +34,7 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
 
   const [formOpen, setFormOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [copied, setCopied] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +90,11 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
 
       if (result.success) {
         setSubmitted(true);
+        setFormOpen(false);
+      } else if (result.alreadyRegistered) {
+        // Same resident, same campaign: no second request was created — close
+        // the form and show the already-registered state instead.
+        setAlreadyRegistered(true);
         setFormOpen(false);
       } else {
         setSubmitError(result.error || 'Could not save your request. Please try again.');
@@ -275,6 +281,16 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
                 <h4 className="text-sm font-bold text-[#142326]">You&apos;re interested!</h4>
                 <p className="text-xs text-[#667085] leading-relaxed">
                   Your request has been recorded. <strong>{campaign.currentDemand} / {campaign.minimumDemand}</strong> residents are interested. If the community target is reached, we&apos;ll coordinate with the verified service provider.
+                </p>
+              </div>
+            ) : alreadyRegistered ? (
+              <div className="p-4 bg-[#2596be]/10 rounded-xl border border-[#2596be]/30 text-center space-y-2">
+                <div className="w-8 h-8 rounded-full bg-[#2596be] text-white mx-auto flex items-center justify-center">
+                  <Check className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-[#142326]">Already Registered</h4>
+                <p className="text-xs text-[#667085] leading-relaxed">
+                  You have already expressed interest in this service. <strong>{campaign.currentDemand} / {campaign.minimumDemand}</strong> residents are interested. If the community target is reached, we&apos;ll coordinate with the verified service provider.
                 </p>
               </div>
             ) : (

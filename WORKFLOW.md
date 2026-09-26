@@ -123,8 +123,8 @@ flowchart TD
     B --> C[Admin: WhatsAppCampaigns → copy share link<br/>/campaign/TOKEN or /c/slug]
     C --> D[Resident opens WhatsApp link]
     D --> E[PublicCampaignPage: pricing, demand progress]
-    E --> F[Submit interest → submitResidentInterest<br/>or increment_campaign_demand RPC]
-    F --> G[current_demand += 1<br/>target reached? status = target_reached]
+    E --> F[Submit interest → submitResidentInterest<br/>or duplicate-safe increment_campaign_demand RPC]
+    F --> G[Duplicate? → no write, 'already registered'<br/>New? → current_demand += 1<br/>target reached? status = target_reached]
     G --> H[Admin: CampaignDetail → assign provider<br/>status = provider_assigned]
     H --> I[... → scheduled → in_progress → completed]
 ```

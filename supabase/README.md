@@ -15,7 +15,7 @@
 | `service_providers` | `ServiceProvider` | Verified vendors; `category_ids`, `services_offered`, `service_areas` are text arrays. |
 | `services` | `Service` | FK → `service_categories`, optional FK → `service_providers`; three price columns (bulk price nullable via migration), demand counters, availability arrays, status workflow. |
 | `campaigns` | `Campaign` | FK → `apartments` and `services`; unique share `token`; group-buy status workflow from `collecting_demand` to `completed`. |
-| `resident_requests` | `ResidentRequest` | FK → `apartments`; `campaign_id` is nullable (demand-poll requests); interest signups from the public campaign page. |
+| `resident_requests` | `ResidentRequest` | FK → `apartments`; `campaign_id` is nullable (demand-poll requests); interest signups from the public campaign page. A resident can express interest in a campaign only ONCE: generated `dedupe_key` (digits-only phone + lowercased block + flat) + partial `UNIQUE (campaign_id, apartment_id, dedupe_key)` index (Section 2C). |
 | `bookings` | `Booking` | FK → `services` and `apartments`; unique `booking_number`; `regular` vs `sunday_bulk` type. |
 | `rwa_applications` | `RWAPartnershipApplication` | Inbound RWA partnership applications. |
 | `vendor_applications` | `VendorApplication` | Inbound vendor onboarding applications. |
@@ -52,10 +52,13 @@
    - **Admin CRUD**: all rights on every table gated by `is_admin()` — enforced
      server-side, not by hiding UI.
    - **`admin_users`**: admins may read the allow-list; nobody writes via the API.
-4. **Atomic demand increment** — `increment_campaign_demand(p_campaign_id, p_request)`
-   RPC (`SECURITY DEFINER`, granted to `anon`): locks the campaign row, inserts the
-   resident request, increments `current_demand`, flips status at the target, and returns
-   the fresh row — no anonymous writes to `campaigns` and no racing increments.
+4. **Atomic, duplicate-safe demand increment** — `increment_campaign_demand(p_campaign_id,
+   p_request)` RPC (`SECURITY DEFINER`, granted to `anon`): locks the campaign row, rejects
+   duplicate interest from the same resident (digits-only phone + block + flat, scoped to
+   the campaign — returns `{ duplicate: true, campaign }` and changes nothing), otherwise
+   inserts the request, increments `current_demand`, flips status at the target, and
+   returns `{ duplicate: false, campaign }` — no anonymous writes to `campaigns`, no
+   racing increments, and no duplicate requests even under concurrent submits.
 5. **Triggers** — `update_timestamp()` keeps `updated_at` fresh on the five mutable tables.
 6. **Realtime** — a `supabase_realtime` publication for all tables, feeding the debounced
    `postgres_changes` subscription in `src/context/AppContext.tsx`.
