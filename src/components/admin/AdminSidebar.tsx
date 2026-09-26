@@ -15,7 +15,9 @@ import {
   Settings,
   LogOut,
   RotateCcw,
-  X
+  X,
+  Wallet,
+  IndianRupee
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 
@@ -45,6 +47,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onCloseMobile }) => 
     { id: 'services', label: 'Services', icon: Sparkles, count: services.length },
     { id: 'categories', label: 'Service Categories', icon: Layers, count: categories.length },
     { id: 'providers', label: 'Service Providers', icon: Users, count: providers.length },
+    { id: 'commissions', label: 'Commissions & Payouts', icon: Wallet },
     { id: 'campaigns', label: 'Community Campaigns', icon: Megaphone, count: campaigns.length },
     { id: 'requests', label: 'Customer Requests', icon: Inbox, count: residentRequests.length, alert: residentRequests.length > 0 },
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: bookings.length },

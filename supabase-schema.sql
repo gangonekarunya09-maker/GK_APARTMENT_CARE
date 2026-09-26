@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS apartments (
   city TEXT NOT NULL,
   pincode TEXT NOT NULL,
   total_units INTEGER NOT NULL DEFAULT 0,
-  gate_security_app TEXT NOT NULL DEFAULT 'MyGate',
+  gate_security_app TEXT NOT NULL DEFAULT 'Digital Gate Pass',
   rwa_contact TEXT,
   rwa_phone TEXT,
   rwa_email TEXT,
@@ -78,6 +78,11 @@ CREATE TABLE IF NOT EXISTS service_providers (
   services_offered TEXT[] DEFAULT '{}',
   service_areas TEXT[] DEFAULT '{}',
   address TEXT NOT NULL,
+  commission_percentage NUMERIC(5, 2) NOT NULL DEFAULT 15.00,
+  payout_upi_id TEXT,
+  payout_account_name TEXT,
+  payout_account_number TEXT,
+  payout_ifsc TEXT,
   normal_pricing_ratio NUMERIC(4, 2) DEFAULT 1.00,
   verification_status TEXT NOT NULL DEFAULT 'verified' CHECK (verification_status IN ('verified', 'pending', 'rejected')),
   completed_jobs INTEGER DEFAULT 0,
@@ -171,9 +176,33 @@ CREATE TABLE IF NOT EXISTS bookings (
   provider_id TEXT REFERENCES service_providers(id) ON DELETE SET NULL,
   provider_name TEXT,
   provider_phone TEXT,
+  commission_rate NUMERIC(5, 2) DEFAULT 15.00,
+  commission_amount NUMERIC(10, 2) DEFAULT 0.00,
+  vendor_payout_amount NUMERIC(10, 2) DEFAULT 0.00,
+  commission_status TEXT NOT NULL DEFAULT 'pending' CHECK (commission_status IN ('pending', 'collected', 'settled', 'waived')),
+  settlement_reference TEXT,
+  settled_at TIMESTAMPTZ,
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- G2. COMMISSION SETTLEMENTS TABLE
+CREATE TABLE IF NOT EXISTS commission_settlements (
+  id TEXT PRIMARY KEY,
+  settlement_number TEXT NOT NULL UNIQUE,
+  provider_id TEXT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+  provider_name TEXT NOT NULL,
+  booking_ids TEXT[] NOT NULL DEFAULT '{}',
+  total_orders INTEGER NOT NULL DEFAULT 0,
+  total_gross NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  commission_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  payout_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  payment_method TEXT NOT NULL DEFAULT 'upi',
+  transaction_reference TEXT NOT NULL,
+  settled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- H. RWA PARTNERSHIP APPLICATIONS TABLE (admin-only reads)

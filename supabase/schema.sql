@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS apartments (
   city TEXT NOT NULL,
   pincode TEXT NOT NULL,
   total_units INTEGER NOT NULL DEFAULT 0,
-  gate_security_app TEXT NOT NULL DEFAULT 'MyGate',
+  gate_security_app TEXT NOT NULL DEFAULT 'Digital Gate Pass',
   rwa_contact TEXT,
   rwa_phone TEXT,
   rwa_email TEXT,

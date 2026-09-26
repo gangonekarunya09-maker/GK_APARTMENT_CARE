@@ -78,7 +78,7 @@ export const ApartmentsManager: React.FC = () => {
   const [rwaContact, setRwaContact] = useState('');
   const [rwaPhone, setRwaPhone] = useState('');
   const [rwaEmail, setRwaEmail] = useState('');
-  const [gateSecurityApp, setGateSecurityApp] = useState<GateSecurityApp>('MyGate');
+  const [gateSecurityApp, setGateSecurityApp] = useState<GateSecurityApp>('Digital Gate Pass');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   const [notes, setNotes] = useState('');
 
@@ -105,7 +105,7 @@ export const ApartmentsManager: React.FC = () => {
     setRwaContact('');
     setRwaPhone('');
     setRwaEmail('');
-    setGateSecurityApp('MyGate');
+    setGateSecurityApp('Digital Gate Pass');
     setStatus('active');
     setNotes('');
     setModalOpen(true);
@@ -1088,10 +1088,10 @@ ${url}
                       onChange={e => setGateSecurityApp(e.target.value as GateSecurityApp)}
                       className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
                     >
-                      <option value="MyGate">MyGate</option>
-                      <option value="NoBrokerHood">NoBrokerHood</option>
-                      <option value="GateBuzz">GateBuzz</option>
-                      <option value="Traditional">Traditional Register</option>
+                      <option value="Digital Gate Pass">Digital Gate Pass</option>
+                      <option value="Society Security Desk">Society Security Desk</option>
+                      <option value="GatePass App">GatePass App</option>
+                      <option value="Traditional Register">Traditional Register</option>
                     </select>
                   </div>
                   <div>

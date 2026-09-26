@@ -1,4 +1,4 @@
-export type GateSecurityApp = 'MyGate' | 'NoBrokerHood' | 'GateBuzz' | 'Traditional';
+export type GateSecurityApp = 'Digital Gate Pass' | 'Society Security Desk' | 'GatePass App' | 'Traditional Register';
 
 export interface Apartment {
   id: string;
@@ -38,6 +38,11 @@ export interface ServiceProvider {
   servicesOffered: string[];
   serviceAreas: string[];
   address: string;
+  commissionPercentage: number; // e.g. 15 for 15%
+  payoutUpiId?: string; // e.g. "suresh@okaxis"
+  payoutAccountName?: string;
+  payoutAccountNumber?: string;
+  payoutIfsc?: string;
   normalPricingRatio?: number;
   verificationStatus: 'verified' | 'pending';
   completedJobs: number;
@@ -138,6 +143,8 @@ export interface BookingTimelineEvent {
   done: boolean;
 }
 
+export type CommissionStatus = 'pending' | 'collected' | 'settled' | 'waived';
+
 export interface Booking {
   id: string;
   bookingNumber: string; // e.g. GK-CA-00192
@@ -158,10 +165,32 @@ export interface Booking {
   providerId?: string;
   providerName?: string;
   providerPhone?: string;
+  commissionRate?: number; // Commission % e.g. 15
+  commissionAmount?: number; // GK platform commission in ₹ e.g. 150
+  vendorPayoutAmount?: number; // Net payout due to provider in ₹ e.g. 850
+  commissionStatus?: CommissionStatus;
+  settlementReference?: string; // UTR or Txn ID
+  settledAt?: string;
   campaignId?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CommissionSettlement {
+  id: string;
+  settlementNumber: string; // e.g. "GK-SETTLE-00101"
+  providerId: string;
+  providerName: string;
+  bookingIds: string[];
+  totalOrders: number;
+  totalGross: number;
+  commissionAmount: number;
+  payoutAmount: number;
+  paymentMethod: 'upi' | 'bank_transfer' | 'cash' | 'other';
+  transactionReference: string;
+  settledAt: string;
+  notes?: string;
 }
 
 export interface RWAPartnershipApplication {

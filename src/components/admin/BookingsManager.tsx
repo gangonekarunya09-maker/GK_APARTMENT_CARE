@@ -17,7 +17,7 @@ import {
 import { motion } from 'motion/react';
 
 export const BookingsManager: React.FC = () => {
-  const { bookings, apartments, providers, updateBookingStatus } = useApp();
+  const { bookings, apartments, providers, updateBookingStatus, defaultCommissionRate, setAdminSection } = useApp();
   const [selectedApartmentId, setSelectedApartmentId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,12 +152,28 @@ export const BookingsManager: React.FC = () => {
 
               {/* Status Advance & Provider Assignment Controls */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E5E7EB] shrink-0">
-                <div className="text-right sm:pr-2">
-                  <div className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">Service Fee</div>
-                  <div className="text-base font-extrabold text-[#142326] font-mono tabular-nums">
-                    ₹{b.price}
-                  </div>
-                </div>
+                {/* Service Fee & Commission Split */}
+                {(() => {
+                  const prov = providers.find(p => p.id === b.providerId);
+                  const rate = b.commissionRate ?? prov?.commissionPercentage ?? defaultCommissionRate ?? 15;
+                  const comm = b.commissionAmount ?? Math.round(((b.price || 0) * rate) / 100);
+                  const vendorPayout = b.vendorPayoutAmount ?? Math.max(0, (b.price || 0) - comm);
+
+                  return (
+                    <div className="text-right sm:pr-2">
+                      <div className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">Customer Fee</div>
+                      <div className="text-base font-extrabold text-[#142326] font-mono tabular-nums">
+                        ₹{b.price}
+                      </div>
+                      <div className="text-[10px] text-[#2596be] font-bold">
+                        GK: ₹{comm} ({rate}%)
+                      </div>
+                      <div className="text-[10px] text-[#2E8B57] font-semibold">
+                        Vendor: ₹{vendorPayout}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Provider select */}
                 <div className="space-y-1">

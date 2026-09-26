@@ -19,6 +19,8 @@ import {
   ResidentRequest,
   RWAPartnershipApplication,
   VendorApplication,
+  CommissionSettlement,
+  CommissionStatus,
 } from '../types';
 import {
   INITIAL_APARTMENTS,
@@ -194,6 +196,27 @@ interface AppContextType {
     bookingId: string,
     status: BookingStatus,
     providerId?: string
+  ) => Promise<MutationResult>;
+
+  // Commission & Payouts management
+  defaultCommissionRate: number;
+  setDefaultCommissionRate: (rate: number) => void;
+  settlements: CommissionSettlement[];
+  createSettlement: (data: {
+    providerId: string;
+    bookingIds: string[];
+    paymentMethod: 'upi' | 'bank_transfer' | 'cash' | 'other';
+    transactionReference: string;
+    notes?: string;
+  }) => Promise<MutationResult<CommissionSettlement>>;
+  updateBookingCommission: (
+    bookingId: string,
+    updates: {
+      commissionStatus?: CommissionStatus;
+      commissionRate?: number;
+      settlementReference?: string;
+      settledAt?: string;
+    }
   ) => Promise<MutationResult>;
 
   submitRWAApplication: (
@@ -552,6 +575,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [residentTab, setResidentTab] = useState<
     'services' | 'community' | 'my-bookings' | 'rwa' | 'vendor'
   >('services');
+
+  /* ---------------- Commission and Settlements State ---------------- */
+  const [defaultCommissionRate, setDefaultCommissionRateState] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('gk_default_commission_rate');
+      return v ? Number(v) : 15;
+    } catch {
+      return 15;
+    }
+  });
+
+  const setDefaultCommissionRate = useCallback((rate: number) => {
+    setDefaultCommissionRateState(rate);
+    try {
+      localStorage.setItem('gk_default_commission_rate', String(rate));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const [settlements, setSettlements] = useState<CommissionSettlement[]>(() => {
+    try {
+      const s = localStorage.getItem('gk_commission_settlements');
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('gk_commission_settlements', JSON.stringify(settlements));
+    } catch {
+      // ignore
+    }
+  }, [settlements]);
 
   /* ---------------- Modals ---------------- */
   const [bookingModalService, setBookingModalService] = useState<Service | null>(null);
@@ -1219,6 +1278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ): Promise<MutationResult<ServiceProvider>> => {
       const newProv: ServiceProvider = {
         ...prov,
+        commissionPercentage: prov.commissionPercentage ?? defaultCommissionRate ?? 15,
         id: generateId('prov'),
         completedJobs: 0,
         rating: 5.0,
@@ -1234,7 +1294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { success: true, data: newProv };
     },
-    [runDb]
+    [defaultCommissionRate, runDb]
   );
 
   const updateProvider = useCallback(
@@ -1248,8 +1308,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (provUpdates.businessName) dbUpdates.business_name = provUpdates.businessName;
       if (provUpdates.contactPerson) dbUpdates.contact_person = provUpdates.contactPerson;
       if (provUpdates.phone) dbUpdates.phone = provUpdates.phone;
+      if (provUpdates.whatsapp) dbUpdates.whatsapp = provUpdates.whatsapp;
+      if (provUpdates.email) dbUpdates.email = provUpdates.email;
+      if (provUpdates.address) dbUpdates.address = provUpdates.address;
+      if (provUpdates.commissionPercentage !== undefined)
+        dbUpdates.commission_percentage = provUpdates.commissionPercentage;
+      if (provUpdates.payoutUpiId !== undefined) dbUpdates.payout_upi_id = provUpdates.payoutUpiId;
+      if (provUpdates.payoutAccountName !== undefined)
+        dbUpdates.payout_account_name = provUpdates.payoutAccountName;
+      if (provUpdates.payoutAccountNumber !== undefined)
+        dbUpdates.payout_account_number = provUpdates.payoutAccountNumber;
+      if (provUpdates.payoutIfsc !== undefined) dbUpdates.payout_ifsc = provUpdates.payoutIfsc;
       if (provUpdates.verificationStatus)
         dbUpdates.verification_status = provUpdates.verificationStatus;
+      if (provUpdates.notes !== undefined) dbUpdates.notes = provUpdates.notes;
 
       const res = await runDb(() =>
         supabase!.from('service_providers').update(dbUpdates).eq('id', id)
@@ -1347,6 +1419,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         10000 + Math.random() * 90000
       )}`;
 
+      const commRate = prov?.commissionPercentage ?? defaultCommissionRate ?? 15;
+      const commissionAmount = Math.round((bookingData.price * commRate) / 100);
+      const vendorPayoutAmount = Math.max(0, bookingData.price - commissionAmount);
+
       const newBooking: Booking = {
         id: generateId('book'),
         bookingNumber: bookingNum,
@@ -1367,6 +1443,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         providerId: prov?.id,
         providerName: prov?.businessName,
         providerPhone: prov?.phone,
+        commissionRate: commRate,
+        commissionAmount,
+        vendorPayoutAmount,
+        commissionStatus: 'pending',
         campaignId: bookingData.campaignId,
         notes: bookingData.notes,
         createdAt: new Date().toISOString(),
@@ -1391,7 +1471,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBookings(prev => [saved, ...prev]);
       return { success: true, data: saved };
     },
-    [services, apartments, providers, isBackendConnected]
+    [services, apartments, providers, defaultCommissionRate, isBackendConnected]
   );
 
   const updateBookingStatus = useCallback(
@@ -1400,12 +1480,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!existing) return { success: false, error: 'Booking not found.' };
       const matchedProv = providerId ? providers.find(p => p.id === providerId) : undefined;
 
+      const rate = matchedProv?.commissionPercentage ?? existing.commissionRate ?? defaultCommissionRate ?? 15;
+      const commissionAmount = Math.round((existing.price * rate) / 100);
+      const vendorPayoutAmount = Math.max(0, existing.price - commissionAmount);
+
       const nextBooking: Booking = {
         ...existing,
         status,
         providerId: providerId || existing.providerId,
         providerName: matchedProv ? matchedProv.businessName : existing.providerName,
         providerPhone: matchedProv ? matchedProv.phone : existing.providerPhone,
+        commissionRate: rate,
+        commissionAmount,
+        vendorPayoutAmount,
         updatedAt: new Date().toISOString(),
       };
 
@@ -1413,6 +1500,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const dbUpdates: Record<string, unknown> = {
         status,
+        commission_rate: rate,
+        commission_amount: commissionAmount,
+        vendor_payout_amount: vendorPayoutAmount,
         updated_at: new Date().toISOString(),
       };
       if (providerId) {
@@ -1432,7 +1522,151 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { success: true };
     },
-    [bookings, providers, runDb]
+    [bookings, providers, defaultCommissionRate, runDb]
+  );
+
+  /* ---------------- Commission Mutations ---------------- */
+  const createSettlement = useCallback(
+    async (data: {
+      providerId: string;
+      bookingIds: string[];
+      paymentMethod: 'upi' | 'bank_transfer' | 'cash' | 'other';
+      transactionReference: string;
+      notes?: string;
+    }): Promise<MutationResult<CommissionSettlement>> => {
+      const prov = providers.find(p => p.id === data.providerId);
+      if (!prov) return { success: false, error: 'Provider not found.' };
+
+      const targetBookings = bookings.filter(b => data.bookingIds.includes(b.id));
+      const totalGross = targetBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+      const rate = prov.commissionPercentage ?? defaultCommissionRate ?? 15;
+      const commissionAmount = targetBookings.reduce(
+        (sum, b) => sum + (b.commissionAmount ?? Math.round(((b.price || 0) * rate) / 100)),
+        0
+      );
+      const payoutAmount = targetBookings.reduce(
+        (sum, b) =>
+          sum +
+          (b.vendorPayoutAmount ??
+            Math.max(0, (b.price || 0) - Math.round(((b.price || 0) * rate) / 100))),
+        0
+      );
+
+      const newSettlement: CommissionSettlement = {
+        id: generateId('setl'),
+        settlementNumber: `GK-SETTLE-${Math.floor(10000 + Math.random() * 90000)}`,
+        providerId: data.providerId,
+        providerName: prov.businessName,
+        bookingIds: data.bookingIds,
+        totalOrders: data.bookingIds.length,
+        totalGross,
+        commissionAmount,
+        payoutAmount,
+        paymentMethod: data.paymentMethod,
+        transactionReference: data.transactionReference,
+        settledAt: new Date().toISOString(),
+        notes: data.notes,
+      };
+
+      setSettlements(prev => [newSettlement, ...prev]);
+
+      // Mark bookings as settled
+      setBookings(prev =>
+        prev.map(b =>
+          data.bookingIds.includes(b.id)
+            ? {
+                ...b,
+                commissionStatus: 'settled',
+                settlementReference: data.transactionReference,
+                settledAt: newSettlement.settledAt,
+                updatedAt: new Date().toISOString(),
+              }
+            : b
+        )
+      );
+
+      if (supabase && isBackendConnected) {
+        for (const bId of data.bookingIds) {
+          try {
+            await supabase
+              .from('bookings')
+              .update({
+                commission_status: 'settled',
+                settlement_reference: data.transactionReference,
+                settled_at: newSettlement.settledAt,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', bId);
+          } catch {
+            // best-effort
+          }
+        }
+      }
+
+      return { success: true, data: newSettlement };
+    },
+    [providers, bookings, defaultCommissionRate, isBackendConnected]
+  );
+
+  const updateBookingCommission = useCallback(
+    async (
+      bookingId: string,
+      updates: {
+        commissionStatus?: CommissionStatus;
+        commissionRate?: number;
+        settlementReference?: string;
+        settledAt?: string;
+      }
+    ): Promise<MutationResult> => {
+      const existing = bookings.find(b => b.id === bookingId);
+      if (!existing) return { success: false, error: 'Booking not found.' };
+
+      const rate =
+        updates.commissionRate ?? existing.commissionRate ?? defaultCommissionRate ?? 15;
+      const commissionAmount = Math.round((existing.price * rate) / 100);
+      const vendorPayoutAmount = Math.max(0, existing.price - commissionAmount);
+
+      const nextBooking: Booking = {
+        ...existing,
+        commissionRate: rate,
+        commissionAmount,
+        vendorPayoutAmount,
+        ...(updates.commissionStatus ? { commissionStatus: updates.commissionStatus } : {}),
+        ...(updates.settlementReference !== undefined
+          ? { settlementReference: updates.settlementReference }
+          : {}),
+        ...(updates.settledAt !== undefined ? { settledAt: updates.settledAt } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+
+      setBookings(prev => prev.map(b => (b.id === bookingId ? nextBooking : b)));
+
+      if (supabase && isBackendConnected) {
+        try {
+          await supabase
+            .from('bookings')
+            .update({
+              commission_rate: rate,
+              commission_amount: commissionAmount,
+              vendor_payout_amount: vendorPayoutAmount,
+              ...(updates.commissionStatus
+                ? { commission_status: updates.commissionStatus }
+                : {}),
+              ...(updates.settlementReference !== undefined
+                ? { settlement_reference: updates.settlementReference }
+                : {}),
+              ...(updates.settledAt !== undefined ? { settled_at: updates.settledAt } : {}),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', bookingId);
+        } catch {
+          // best-effort
+        }
+      }
+
+      return { success: true };
+    },
+    [bookings, defaultCommissionRate, isBackendConnected]
   );
 
   /* ---------------- Applications ---------------- */
@@ -1589,6 +1823,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateService,
         createBooking,
         updateBookingStatus,
+
+        defaultCommissionRate,
+        setDefaultCommissionRate,
+        settlements,
+        createSettlement,
+        updateBookingCommission,
+
         submitRWAApplication,
         submitVendorApplication,
 

@@ -9,6 +9,7 @@ import {
   ResidentRequest,
   RWAPartnershipApplication,
   VendorApplication,
+  CommissionSettlement,
 } from '../types';
 
 const FALLBACK_SUPABASE_URL = 'https://dhbnbitsiuvqqkikeitv.supabase.co';
@@ -81,7 +82,7 @@ export function mapApartmentFromDb(data: any): Apartment {
     city: data.city,
     pincode: data.pincode,
     totalUnits: data.total_units || data.totalUnits || 0,
-    gateSecurityApp: data.gate_security_app || data.gateSecurityApp || 'MyGate',
+    gateSecurityApp: data.gate_security_app || data.gateSecurityApp || 'Digital Gate Pass',
     rwaContact: data.rwa_contact || data.rwaContact || '',
     rwaPhone: data.rwa_phone || data.rwaPhone || '',
     rwaEmail: data.rwa_email || data.rwaEmail || '',
@@ -144,6 +145,11 @@ export function mapProviderFromDb(data: any): ServiceProvider {
     servicesOffered: data.services_offered || data.servicesOffered || [],
     serviceAreas: data.service_areas || data.serviceAreas || [],
     address: data.address,
+    commissionPercentage: Number(data.commission_percentage ?? data.commissionPercentage ?? 15),
+    payoutUpiId: data.payout_upi_id || data.payoutUpiId || '',
+    payoutAccountName: data.payout_account_name || data.payoutAccountName || '',
+    payoutAccountNumber: data.payout_account_number || data.payoutAccountNumber || '',
+    payoutIfsc: data.payout_ifsc || data.payoutIfsc || '',
     normalPricingRatio: data.normal_pricing_ratio || data.normalPricingRatio || 1.0,
     verificationStatus: data.verification_status || data.verificationStatus || 'verified',
     completedJobs: data.completed_jobs || data.completedJobs || 0,
@@ -165,6 +171,11 @@ export function mapProviderToDb(prov: ServiceProvider): any {
     services_offered: prov.servicesOffered,
     service_areas: prov.serviceAreas,
     address: prov.address,
+    commission_percentage: prov.commissionPercentage ?? 15,
+    payout_upi_id: prov.payoutUpiId || null,
+    payout_account_name: prov.payoutAccountName || null,
+    payout_account_number: prov.payoutAccountNumber || null,
+    payout_ifsc: prov.payoutIfsc || null,
     normal_pricing_ratio: prov.normalPricingRatio,
     verification_status: prov.verificationStatus,
     completed_jobs: prov.completedJobs,
@@ -321,6 +332,12 @@ export function mapBookingFromDb(data: any): Booking {
     providerId: data.provider_id || data.providerId,
     providerName: data.provider_name || data.providerName,
     providerPhone: data.provider_phone || data.providerPhone,
+    commissionRate: data.commission_rate !== undefined ? Number(data.commission_rate) : data.commissionRate,
+    commissionAmount: data.commission_amount !== undefined ? Number(data.commission_amount) : data.commissionAmount,
+    vendorPayoutAmount: data.vendor_payout_amount !== undefined ? Number(data.vendor_payout_amount) : data.vendorPayoutAmount,
+    commissionStatus: data.commission_status || data.commissionStatus || 'pending',
+    settlementReference: data.settlement_reference || data.settlementReference || '',
+    settledAt: data.settled_at || data.settledAt,
     campaignId:
       data.campaign_id ||
       data.campaignId ||
@@ -361,9 +378,51 @@ export function mapBookingToDb(b: Booking): any {
     provider_id: b.providerId ?? null,
     provider_name: b.providerName,
     provider_phone: b.providerPhone,
+    commission_rate: b.commissionRate,
+    commission_amount: b.commissionAmount,
+    vendor_payout_amount: b.vendorPayoutAmount,
+    commission_status: b.commissionStatus || 'pending',
+    settlement_reference: b.settlementReference || null,
+    settled_at: b.settledAt || null,
     notes: mappedNotes,
     created_at: b.createdAt,
     updated_at: b.updatedAt,
+  };
+}
+
+export function mapSettlementFromDb(data: any): CommissionSettlement {
+  return {
+    id: data.id,
+    settlementNumber: data.settlement_number || data.settlementNumber,
+    providerId: data.provider_id || data.providerId,
+    providerName: data.provider_name || data.providerName,
+    bookingIds: data.booking_ids || data.bookingIds || [],
+    totalOrders: Number(data.total_orders ?? data.totalOrders ?? 0),
+    totalGross: Number(data.total_gross ?? data.totalGross ?? 0),
+    commissionAmount: Number(data.commission_amount ?? data.commissionAmount ?? 0),
+    payoutAmount: Number(data.payout_amount ?? data.payoutAmount ?? 0),
+    paymentMethod: data.payment_method || data.paymentMethod || 'upi',
+    transactionReference: data.transaction_reference || data.transactionReference || '',
+    settledAt: data.settled_at || data.settledAt || new Date().toISOString(),
+    notes: data.notes || '',
+  };
+}
+
+export function mapSettlementToDb(s: CommissionSettlement): any {
+  return {
+    id: s.id,
+    settlement_number: s.settlementNumber,
+    provider_id: s.providerId,
+    provider_name: s.providerName,
+    booking_ids: s.bookingIds,
+    total_orders: s.totalOrders,
+    total_gross: s.totalGross,
+    commission_amount: s.commissionAmount,
+    payout_amount: s.payoutAmount,
+    payment_method: s.paymentMethod,
+    transaction_reference: s.transactionReference,
+    settled_at: s.settledAt,
+    notes: s.notes,
   };
 }
 

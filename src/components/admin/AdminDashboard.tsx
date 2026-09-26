@@ -7,6 +7,7 @@ import { ApartmentsManager } from './ApartmentsManager';
 import { ServicesManager } from './ServicesManager';
 import { CategoriesManager } from './CategoriesManager';
 import { ProvidersManager } from './ProvidersManager';
+import { CommissionsManager } from './CommissionsManager';
 import { ResidentRequestsManager } from './ResidentRequestsManager';
 import { BookingsManager } from './BookingsManager';
 import { DemandManager } from './DemandManager';
@@ -30,6 +31,8 @@ export const AdminDashboard: React.FC = () => {
         return <CategoriesManager />;
       case 'providers':
         return <ProvidersManager />;
+      case 'commissions':
+        return <CommissionsManager />;
       case 'campaigns':
         return <CampaignsManager />;
       case 'requests':

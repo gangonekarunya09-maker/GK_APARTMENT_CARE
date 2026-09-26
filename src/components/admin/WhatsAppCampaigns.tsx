@@ -33,7 +33,7 @@ Exclusive Sunday Community Service Batch:
 ${selectedService?.currentDemand || 17} of ${selectedService?.minimumDemand || 20} residents booked.
 Only ${needed} more flats needed to lock bulk rate for the whole society!
 
-✅ Pre-registered gate entry through ${selectedApt?.gateSecurityApp || 'MyGate'}.
+✅ Pre-registered gate entry through ${selectedApt?.gateSecurityApp || 'Digital Gate Pass'}.
 ✅ Quiet hours 1:00 PM – 2:30 PM respected.
 ✅ 100% background-verified staff.
 

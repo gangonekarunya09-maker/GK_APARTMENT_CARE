@@ -72,7 +72,7 @@ export const VendorOnboardingView: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4 text-[#2E8B57] shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-[#142326] block">Pre-Cleared Gate Passes</strong>
-                  Our operations team manages MyGate and security pre-approvals for all your technicians.
+                  Our operations team manages digital gate passes and security pre-approvals for all your technicians.
                 </div>
               </div>
 

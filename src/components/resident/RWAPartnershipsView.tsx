@@ -58,7 +58,7 @@ export const RWAPartnershipsView: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4 text-[#2E8B57] shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-[#142326] block">Gate Security Alignment</strong>
-                  Pre-cleared technician batches via MyGate / NoBrokerHood. No random vendors wandering towers.
+                  Pre-cleared technician batches via official digital gate passes. No random vendors wandering towers.
                 </div>
               </div>
 

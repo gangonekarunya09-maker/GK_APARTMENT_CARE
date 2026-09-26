@@ -10,7 +10,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  Wallet,
+  Percent
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -21,12 +23,21 @@ export const AdminOverview: React.FC = () => {
     providers,
     campaigns,
     residentRequests,
+    bookings,
+    defaultCommissionRate,
     setAdminSection,
     setActiveCampaignId,
     setAdminSelectedCommunityId,
   } = useApp();
 
   const totalFlats = apartments.reduce((acc, curr) => acc + curr.totalUnits, 0);
+
+  // Commission calculations
+  const totalCommissionEarned = bookings.reduce((sum, b) => {
+    const rate = b.commissionRate ?? (providers.find(p => p.id === b.providerId)?.commissionPercentage ?? defaultCommissionRate ?? 15);
+    return sum + (b.commissionAmount ?? Math.round(((b.price || 0) * rate) / 100));
+  }, 0);
+  const pendingPayoutCount = bookings.filter(b => b.status === 'completed' && b.commissionStatus !== 'settled').length;
 
   // Pending Actions computation
   const targetReachedCampaigns = campaigns.filter(
@@ -52,6 +63,13 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAdminSection('commissions')}
+            className="px-3.5 py-2 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Commissions &amp; Payouts</span>
+          </button>
           <button
             onClick={() => {
               setAdminSection('campaigns');
@@ -127,7 +145,7 @@ export const AdminOverview: React.FC = () => {
           <span>Pending Operator Actions</span>
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB]">
             <span className="text-[#667085] block">Target Reached:</span>
             <strong className="text-sm font-bold text-[#2E8B57]">
@@ -155,6 +173,19 @@ export const AdminOverview: React.FC = () => {
             </strong>
             <span className="text-[11px] text-[#667085] block mt-0.5">
               Logged in current cycle
+            </span>
+          </div>
+
+          <div
+            onClick={() => setAdminSection('commissions')}
+            className="p-3 bg-[#2596be]/5 hover:bg-[#2596be]/10 rounded-xl border border-[#2596be]/20 cursor-pointer transition-colors"
+          >
+            <span className="text-[#2596be] block font-bold">Unsettled Payouts:</span>
+            <strong className="text-sm font-bold text-[#142326]">
+              {pendingPayoutCount} orders pending
+            </strong>
+            <span className="text-[11px] text-[#2596be] block mt-0.5 font-semibold">
+              ₹{totalCommissionEarned.toLocaleString('en-IN')} total GK fee →
             </span>
           </div>
         </div>

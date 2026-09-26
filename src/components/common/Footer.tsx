@@ -20,7 +20,7 @@ export const Footer: React.FC = () => {
             </p>
             <div className="text-[11px] text-[#2E8B57] font-semibold flex items-center gap-1.5 pt-1">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>MyGate &amp; NoBrokerHood Approved</span>
+              <span>Society Gate Pass Pre-Approved</span>
             </div>
           </div>
 
@@ -188,7 +188,7 @@ export const Footer: React.FC = () => {
                   <>
                     <p>• Resident contact information is strictly used for service dispatch and security gate clearance pass generation.</p>
                     <p>• Data is never sold or shared with third-party telemarketers.</p>
-                    <p>• Gate passes are securely synchronized through official society security systems (MyGate / NoBrokerHood).</p>
+                    <p>• Gate passes are securely synchronized through official society security and digital gate systems.</p>
                   </>
                 ) : (
                   <>
