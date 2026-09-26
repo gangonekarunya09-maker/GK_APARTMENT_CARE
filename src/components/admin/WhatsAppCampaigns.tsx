@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getPublicBaseUrl } from '../../lib/router';
 import { MessageCircle, Copy, Check, Share2, Sparkles, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -12,8 +13,7 @@ export const WhatsAppCampaigns: React.FC = () => {
   const selectedApt = apartments.find(a => a.id === selectedAptId) || apartments[0];
   const selectedService = services.find(s => s.id === selectedServiceId) || services[0];
 
-  const currentUrl = window.location.origin + window.location.pathname;
-  const serviceLink = `${currentUrl}?society=${selectedApt?.slug || 'green-valley'}&service=${selectedService?.id || 'srv-car-wash'}`;
+  const serviceLink = `${getPublicBaseUrl()}/?society=${selectedApt?.slug || 'green-valley'}&service=${selectedService?.id || 'srv-car-wash'}`;
 
   const needed = selectedService
     ? Math.max(0, selectedService.minimumDemand - selectedService.currentDemand)

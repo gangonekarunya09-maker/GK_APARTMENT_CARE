@@ -55,6 +55,10 @@ import {
   mapVendorApplicationToDb,
 } from '../lib/supabase';
 import { generateId, generateShareToken, slugify } from '../lib/ids';
+import {
+  getCustomerPortalUrl as getCanonicalCustomerPortalUrl,
+  getCustomerPortalPath as getCanonicalCustomerPortalPath,
+} from '../lib/router';
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -146,6 +150,7 @@ interface AppContextType {
   toggleApartmentStatus: (id: string) => Promise<MutationResult>;
   generateCustomerPortalToken: (apartmentId: string) => Promise<MutationResult<string>>;
   getCustomerPortalUrl: (apartment: Apartment) => string;
+  getCustomerPortalPath: (apartment: Apartment) => string;
   submitCommunityDemand: (data: {
     apartmentId: string;
     serviceName: string;
@@ -508,6 +513,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /* ---------------- Public scoped fetchers ---------------- */
   const fetchApartmentForPortal = useCallback(
     async (slugOrToken: string | null, token: string | null): Promise<MutationResult<Apartment>> => {
+      const cleanSlug = slugOrToken?.trim().toLowerCase();
+      const cleanToken = token?.trim();
+
       if (!supabase || !isBackendConnected) {
         // Demo mode: resolve against seed data only. Strict slug+token pairing:
         // a valid token under a wrong slug must NOT load the community.
@@ -515,18 +523,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const match = pool.find(
           a =>
             Boolean(
-              slugOrToken &&
-                token &&
-                (a.slug === slugOrToken || a.id === slugOrToken) &&
+              cleanSlug &&
+                cleanToken &&
+                (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug) &&
                 a.portalToken &&
-                a.portalToken.toLowerCase() === token.toLowerCase()
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
             ) ||
-            Boolean(slugOrToken && !token && (a.slug === slugOrToken || a.id === slugOrToken)) ||
+            Boolean(cleanSlug && !cleanToken && (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug)) ||
             Boolean(
-              token &&
-                !slugOrToken &&
+              cleanToken &&
+                !cleanSlug &&
                 a.portalToken &&
-                a.portalToken.toLowerCase() === token.toLowerCase()
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
             )
         );
         if (!match) {
@@ -537,14 +545,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       try {
         let query = supabase.from('apartments').select('*').limit(1);
-        if (token && slugOrToken) {
+        if (cleanToken && cleanSlug) {
           // Strict pairing: slug AND token must match the SAME row, so a valid
           // portal token under a wrong slug can never load another community.
-          query = query.eq('slug', slugOrToken).eq('portal_token', token);
-        } else if (token) {
-          query = query.eq('portal_token', token);
-        } else if (slugOrToken) {
-          query = query.eq('slug', slugOrToken);
+          query = query.eq('slug', cleanSlug).eq('portal_token', cleanToken);
+        } else if (cleanToken) {
+          query = query.eq('portal_token', cleanToken);
+        } else if (cleanSlug) {
+          query = query.eq('slug', cleanSlug);
         } else {
           return { success: false, error: 'Invalid community link.' };
         }
@@ -941,9 +949,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const getCustomerPortalUrl = useCallback((apartment: Apartment): string => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const token = apartment.portalToken || '';
-    return token ? `${origin}/c/${apartment.slug}/${token}` : `${origin}/c/${apartment.slug}`;
+    return getCanonicalCustomerPortalUrl(apartment);
+  }, []);
+
+  const getCustomerPortalPath = useCallback((apartment: Apartment): string => {
+    return getCanonicalCustomerPortalPath(apartment);
   }, []);
 
   const submitCommunityDemand = useCallback(
@@ -1386,6 +1396,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleApartmentStatus,
         generateCustomerPortalToken,
         getCustomerPortalUrl,
+        getCustomerPortalPath,
         submitCommunityDemand,
 
         addCategory,

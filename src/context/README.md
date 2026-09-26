@@ -41,7 +41,7 @@
   …) and a portal token via `src/lib/ids.ts`, so newly created communities are immediately
   routable at `/c/:slug/:token` with zero config changes.
 - **Modal/UI state** — `bookingModalService`, `shareModalService`, `trackingBooking`,
-  `societySelectorOpen`.
+  `societySelectorOpen` (selector modal currently unmounted).
 
 ## Persistence Model
 
@@ -55,8 +55,8 @@
    `localStorage`. `resetToDemoData()` restores the baseline seeds in this mode (no-op in
    Supabase mode). Collections never persist to localStorage; the only persisted key is the
    admin UI section (`STORAGE_KEYS.ADMIN_SECTION`). Community selection is **session-scoped**
-   by design — it is never restored from storage, so the root landing page can never
-   auto-enter a previously selected community.
+   by design — it is never restored from storage, and the root website never
+   auto-enters a community.
    There is no fallback share token (e.g. the old `'7H4K92'`) — portal URLs always come
    from real rows.
 

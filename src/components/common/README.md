@@ -15,10 +15,9 @@ Small, app-wide UI pieces used by multiple audiences.
 - `Navbar` and `Footer` are rendered by `src/App.tsx` around the resident views only —
   the `public/` portal pages render their own minimal headers, and the `admin/` dashboard
   uses `AdminSidebar` instead.
-- Both import the context (`src/context/AppContext.tsx`) to drive tab navigation and the
-  `societySelectorOpen` modal flag.
+- Both import the context (`src/context/AppContext.tsx`) to drive tab navigation.
 - `Logo` is reused across folders: `common/Navbar`, `common/Footer`, `admin/AdminSidebar`,
   `admin/AdminLogin`, and both `public/` portal pages.
-- `resident/SocietySelectorModal` is the modal that `Navbar`/`Footer` open; the modal
-  component is mounted globally in `src/App.tsx` and shown via the context's
-  `societySelectorOpen` state (the common components only toggle the flag).
+- `resident/SocietySelectorModal` is no longer mounted: the root website has no
+  community-selection gate, and community entry is via explicit /c/:slug/:token portal
+  links. (The modal component and its context state remain available but unused.)

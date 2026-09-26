@@ -199,4 +199,35 @@ export function isAdminPath(pathname: string, search: string): AdminRouteMatch {
   };
 }
 
+/** Canonical production base URL for public customer-facing links. */
+export const PRODUCTION_APP_URL = 'https://gk-apartment-care.vercel.app';
+
+/**
+ * Returns the canonical public app base URL (no trailing slash).
+ * Never uses window.location.origin so admin preview/deployment URLs never leak to residents.
+ */
+export function getPublicBaseUrl(): string {
+  const envUrl = (
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_PUBLIC_APP_URL) ||
+    ''
+  ).trim();
+
+  return (envUrl || PRODUCTION_APP_URL).replace(/\/+$/, '');
+}
+
+/**
+ * Returns the canonical customer portal relative path, e.g. /c/aparna-sarovar-zenith/AS39Z4
+ */
+export function getCustomerPortalPath(apartment: { slug: string; portalToken?: string | null }): string {
+  const token = apartment.portalToken?.trim();
+  return token ? `/c/${apartment.slug}/${token}` : `/c/${apartment.slug}`;
+}
+
+/**
+ * Generates the full canonical public customer portal URL pointing to the production domain.
+ */
+export function getCustomerPortalUrl(apartment: { slug: string; portalToken?: string | null }): string {
+  return `${getPublicBaseUrl()}${getCustomerPortalPath(apartment)}`;
+}
+
 export { eq as routeEq };

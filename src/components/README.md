@@ -21,8 +21,7 @@ hook — components never hold domain state of their own.
   `MutationResult` calls with inline error handling) and `src/types/` for domain models.
 - **Cross-folder reuse** is minimal by design: `public/` and `admin/` screens import
   `common/Logo`, and the root app composes `common/Navbar`, `common/Footer` and the global
-  modals (`resident/BookingModal`, `resident/WhatsAppShareModal`,
-  `resident/SocietySelectorModal`) around `resident/` views.
+  modals (`resident/BookingModal`, `resident/WhatsAppShareModal`) around `resident/` views.
 - Internal composition examples: `resident/ServiceCatalog` renders `resident/ServiceCard`;
   `resident/MyBookingsView` renders `resident/StatusTracker`; `admin/AdminDashboard` renders
   every other `admin/*` manager by section; `admin/CampaignsManager` and

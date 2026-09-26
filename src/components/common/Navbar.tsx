@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Logo } from './Logo';
-import { Building2, Shield, Calendar, Sparkles, User, Settings, ArrowRight, Menu, X } from 'lucide-react';
+import { Shield, Calendar, Sparkles, ArrowRight, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Navbar: React.FC = () => {
   const {
     residentTab,
     setResidentTab,
-    selectedApartment,
     bookings,
   } = useApp();
 
@@ -32,7 +31,7 @@ export const Navbar: React.FC = () => {
           <Logo size="md" />
         </button>
 
-        {/* Zone 2: Navigation Links (single-line, clean text hover, no pill badges) */}
+        {/* Zone 2: Navigation Links */}
         <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-[#667085]">
           <button
             onClick={() => setResidentTab('services')}
@@ -42,23 +41,6 @@ export const Navbar: React.FC = () => {
           >
             Services
           </button>
-
-          <button
-            onClick={() => setResidentTab('community')}
-            className={`hover:text-[#142326] transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              residentTab === 'community' ? 'text-[#2596be] font-semibold' : ''
-            }`}
-          >
-            <Building2 className="w-4 h-4 text-[#2596be]" />
-            <span>Community Portal</span>
-          </button>
-
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-lg text-xs font-semibold text-[#142326]">
-            <Building2 className="w-3.5 h-3.5 text-[#2596be]" />
-            <span className="max-w-[180px] truncate">
-              {selectedApartment?.name || 'Community Portal'}
-            </span>
-          </div>
 
           <button
             onClick={() => setResidentTab('my-bookings')}
@@ -93,14 +75,8 @@ export const Navbar: React.FC = () => {
           </button>
         </nav>
 
-        {/* Zone 3: Actions (1-2 clean buttons) */}
+        {/* Zone 3: Actions */}
         <div className="flex items-center gap-2.5">
-          {/* Society badge on smaller screens */}
-          <div className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-lg text-xs font-medium text-[#142326]">
-            <Building2 className="w-3.5 h-3.5 text-[#2596be]" />
-            <span className="max-w-[110px] truncate">{selectedApartment?.name.split(' ')[0]}</span>
-          </div>
-
           {/* Mobile hamburger menu toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -123,30 +99,6 @@ export const Navbar: React.FC = () => {
             className="lg:hidden bg-white border-b border-[#E5E7EB] px-4 pt-3 pb-5 shadow-sm"
           >
             <div className="flex flex-col gap-2">
-              <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] mb-2">
-                <div className="text-[11px] uppercase tracking-wider text-[#667085] font-semibold">Your Community</div>
-                <div className="text-sm font-bold text-[#142326]">{selectedApartment?.name}</div>
-                <div className="text-xs text-[#667085]">{selectedApartment?.area}, Hyderabad</div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setResidentTab('community');
-                  setMobileMenuOpen(false);
-                }}
-                className={`flex items-center justify-between p-2.5 rounded-lg text-sm font-medium ${
-                  residentTab === 'community'
-                    ? 'bg-[#2596be]/10 text-[#2596be] font-bold'
-                    : 'text-[#142326] hover:bg-[#F8F9FA]'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#2596be]" />
-                  <span>{selectedApartment?.name || 'Community'} Portal</span>
-                </div>
-                <ArrowRight className="w-4 h-4 text-[#667085]" />
-              </button>
-
               <button
                 onClick={() => {
                   setResidentTab('services');
@@ -199,7 +151,7 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#2596be]" />
+                  <Shield className="w-4 h-4 text-[#2596be]" />
                   <span>RWA Partnerships</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-[#667085]" />

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getPublicBaseUrl } from '../../lib/router';
 import { Campaign, CampaignStatus } from '../../types';
 import { CampaignDetail } from './CampaignDetail';
 import {
@@ -131,7 +132,7 @@ export const CampaignsManager: React.FC = () => {
   });
 
   const handleCopy = (token: string, aptSlug: string, srvId: string) => {
-    const url = `${window.location.origin}/community/${aptSlug}/${srvId}/${token}`;
+    const url = `${getPublicBaseUrl()}/community/${aptSlug}/${srvId}/${token}`;
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);

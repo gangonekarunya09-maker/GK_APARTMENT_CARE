@@ -15,7 +15,7 @@ import {
 import { motion } from 'motion/react';
 
 export const AdminAnalytics: React.FC = () => {
-  const { apartments, bookings, services, campaigns, residentRequests, navigate } = useApp();
+  const { apartments, bookings, services, campaigns, residentRequests, navigate, getCustomerPortalPath } = useApp();
 
   const totalFlats = apartments.reduce((acc, a) => acc + a.totalUnits, 0);
   const totalRevenue = bookings.reduce((acc, b) => acc + (b.price || 0), 0);
@@ -122,7 +122,7 @@ export const AdminAnalytics: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => navigate(`/c/${apt.slug}/${apt.portalToken || '7H4K92'}`)}
+                    onClick={() => navigate(getCustomerPortalPath(apt))}
                     className="px-3 py-1.5 bg-white hover:bg-[#E5E7EB] text-[#2596be] border border-[#E5E7EB] text-xs font-bold rounded-lg flex items-center gap-1.5 self-start cursor-pointer transition-colors"
                   >
                     <span>View Customer Portal</span>

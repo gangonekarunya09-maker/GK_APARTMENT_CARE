@@ -18,15 +18,14 @@ bookings, and onboarding flows for RWAs and vendors.
 | `RWAPartnershipsView.tsx` | "RWA" tab: partnership pitch + `submitRWAApplication` form (awaitable mutation with error handling). |
 | `VendorOnboardingView.tsx` | "Vendor" tab: onboarding pitch + `submitVendorApplication` form (awaitable mutation with error handling). |
 | `MobileStickyCTA.tsx` | Fixed bottom call-to-action on mobile; opens the booking modal for the featured service. |
-| `SocietySelectorModal.tsx` | Community picker modal; toggled by `societySelectorOpen` context state (set by `common/Navbar` / `common/Footer`). **Mounted globally in `src/App.tsx`** alongside the other modals. |
+| `SocietySelectorModal.tsx` | Community picker modal; toggled by `societySelectorOpen` context state. **Not currently mounted anywhere** — the root website has no community-selection gate (community entry is via explicit /c/:slug/:token links). |
 
 ## Connections
 
 - **Composed by** `src/App.tsx` inside the default resident route: `Navbar` (common) +
   tab-conditional views (`ServiceCatalog`/`Hero`/`TrustSection`, `MyBookingsView`,
   `RWAPartnershipsView`, `VendorOnboardingView`, `CommunityCustomerPortal` from `public/`)
-  + `Footer` + the global modals `BookingModal`, `WhatsAppShareModal`, and
-  `SocietySelectorModal`.
+  + `Footer` + the global modals `BookingModal` and `WhatsAppShareModal`.
 - Internal composition: `ServiceCatalog → ServiceCard`; `MyBookingsView → StatusTracker`.
 - All data/actions come from `useApp()` (`src/context/AppContext.tsx`): services, categories,
   campaigns, bookings, modal setters, and the awaitable `MutationResult` mutations

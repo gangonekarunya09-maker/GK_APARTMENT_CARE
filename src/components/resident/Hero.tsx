@@ -1,6 +1,5 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
-import { Building2, Sparkles, ShieldCheck, Clock, ArrowRight, Users, Car, Armchair } from 'lucide-react';
+import { Building2, Sparkles, ShieldCheck, Clock, ArrowRight, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface HeroProps {
@@ -9,8 +8,6 @@ interface HeroProps {
 }
 
 export const Hero: React.FC<HeroProps> = ({ onExploreClick, onBookNowClick }) => {
-  const { selectedApartment } = useApp();
-
   return (
     <section className="bg-gradient-to-b from-[#F8F9FA] to-white border-b border-[#E5E7EB] pt-8 pb-10 sm:pt-12 sm:pb-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -23,9 +20,8 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onBookNowClick }) =>
             className="inline-flex items-center gap-2 py-1.5 px-3.5 bg-white border border-[#E5E7EB] rounded-full shadow-xs"
           >
             <Building2 className="w-4 h-4 text-[#2596be]" />
-            <span className="text-xs font-medium text-[#667085]">Dedicated Portal:</span>
-            <span className="text-xs font-bold text-[#142326] truncate max-w-[260px] sm:max-w-none">
-              {selectedApartment?.name || 'Your Community'}
+            <span className="text-xs font-semibold text-[#142326]">
+              Hyper-Local Community Care · Hyderabad
             </span>
           </motion.div>
 

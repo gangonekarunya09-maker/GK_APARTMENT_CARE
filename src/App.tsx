@@ -2,8 +2,6 @@ import React, { useMemo } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { resolveRoute, isAdminPath } from './lib/router';
 import { Navbar } from './components/common/Navbar';
-import { Logo } from './components/common/Logo';
-import { Building2 } from 'lucide-react';
 import { Hero } from './components/resident/Hero';
 import { ServiceCatalog } from './components/resident/ServiceCatalog';
 import { TrustSection } from './components/resident/TrustSection';
@@ -13,7 +11,6 @@ import { VendorOnboardingView } from './components/resident/VendorOnboardingView
 import { BookingModal } from './components/resident/BookingModal';
 import { WhatsAppShareModal } from './components/resident/WhatsAppShareModal';
 import { MobileStickyCTA } from './components/resident/MobileStickyCTA';
-import { SocietySelectorModal } from './components/resident/SocietySelectorModal';
 import { Footer } from './components/common/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -320,97 +317,6 @@ const CommunityPortalRoute: React.FC<{
 /* Router                                                              */
 /* ------------------------------------------------------------------ */
 
-/* ------------------------------------------------------------------ */
-/* Root landing page (general/new visitors)                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Dedicated landing page for `/`. A general visitor must NOT be dropped into
- * any community portal — they pick their community explicitly (or follow an
- * explicit /c/:slug/:token link). Uses the existing visual language (Logo,
- * Tailwind palette) and the existing SocietySelectorModal for entry.
- */
-const LandingPage: React.FC = () => {
-  const { apartments, setSocietySelectorOpen } = useApp();
-  const activeCommunities = apartments.filter(a => a.status === 'active');
-  const featured = activeCommunities.slice(0, 3);
-
-  return (
-    <div className="min-h-screen bg-white text-[#142326] flex flex-col antialiased selection:bg-[#2596be]/20">
-      <Navbar />
-
-      <main className="flex-1">
-        <section className="max-w-5xl mx-auto px-4 pt-14 pb-10 text-center">
-          <div className="flex justify-center mb-5">
-            <Logo size="lg" />
-          </div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#2596be] mb-3">
-            Hyper-Local Community Services · Hyderabad
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-['Plus_Jakarta_Sans'] font-extrabold leading-tight">
-            Premium Home &amp; Auto Care for
-            <br className="hidden sm:block" /> Gated Communities
-          </h1>
-          <p className="text-sm text-[#667085] leading-relaxed max-w-xl mx-auto mt-4">
-            Verified providers, community-coordinated pricing, and Sunday bulk discounts —
-            delivered through your society&apos;s dedicated portal. Select your community to
-            get started.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
-            <button
-              onClick={() => setSocietySelectorOpen(true)}
-              className="px-6 py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-sm font-extrabold rounded-xl transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Select Your Community</span>
-            </button>
-            <a
-              href="/admin"
-              className="px-6 py-3 bg-white border border-[#E5E7EB] hover:bg-[#F8F9FA] text-[#142326] text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
-            >
-              Operator Login
-            </a>
-          </div>
-        </section>
-
-        {featured.length > 0 && (
-          <section className="max-w-5xl mx-auto px-4 pb-14">
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#667085] text-center mb-4">
-              Communities we serve
-            </p>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {featured.map(apt => (
-                <button
-                  key={apt.id}
-                  onClick={() => setSocietySelectorOpen(true)}
-                  className="p-4 bg-[#F8F9FA] border border-[#E5E7EB] rounded-2xl text-left hover:border-[#2596be]/40 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#2596be]/10 flex items-center justify-center shrink-0">
-                      <Building2 className="w-4.5 h-4.5 text-[#2596be]" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold truncate">{apt.name}</div>
-                      <div className="text-[11px] text-[#667085] truncate">
-                        {apt.area}, {apt.city}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <TrustSection />
-      </main>
-
-      <Footer />
-      <SocietySelectorModal />
-    </div>
-  );
-};
-
 const AppRouter: React.FC = () => {
   const {
     currentPath,
@@ -424,8 +330,6 @@ const AppRouter: React.FC = () => {
     setBookingModalService,
     residentTab,
     setResidentTab,
-    selectedApartment,
-    hasExplicitCommunity,
   } = useApp();
 
   const route = useMemo(
@@ -491,15 +395,10 @@ const AppRouter: React.FC = () => {
     );
   }
 
-  /* ---------------- Root landing page (general visitors) ---------------- */
-  // `/` shows the GK Apartment Care landing page for new/general visitors.
-  // The resident storefront only opens after an explicit community choice —
-  // never automatically, never for a previously selected community.
-  if (route.kind === 'resident' && !hasExplicitCommunity) {
-    return <LandingPage />;
-  }
-
-  /* ---------------- Default resident experience ---------------- */
+  /* ---------------- General website (all / routes) ---------------- */
+  // `/` always shows the general GK Apartment Care website.
+  // No community selector, no community gate, no LandingPage.
+  // Community portal links (/c/:slug/:token) are routed above.
   const handleScrollToCatalog = () => {
     setResidentTab('services');
     setTimeout(() => {
@@ -523,13 +422,6 @@ const AppRouter: React.FC = () => {
       <Navbar />
 
       <main className="flex-1">
-        {residentTab === 'community' && (
-          <CommunityPortalRoute
-            slug={null}
-            token={null}
-          />
-        )}
-
         {residentTab === 'services' && (
           <>
             <Hero
@@ -554,7 +446,6 @@ const AppRouter: React.FC = () => {
       {/* Global interactive modals */}
       <BookingModal />
       <WhatsAppShareModal />
-      <SocietySelectorModal />
 
       {/* Demo-mode banner: production data comes from Supabase */}
       {dataStatus === 'demo' && (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getPublicBaseUrl } from '../../lib/router';
 import { Campaign, CampaignStatus, ServiceProvider } from '../../types';
 import {
   ArrowLeft,
@@ -65,8 +66,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
   const isTargetReached = needed === 0;
 
   // Build public URL
-  const currentOrigin = window.location.origin;
-  const publicUrl = `${currentOrigin}/community/${apartment.slug}/${service.id}/${campaign.token}`;
+  const publicUrl = `${getPublicBaseUrl()}/community/${apartment.slug}/${service.id}/${campaign.token}`;
 
   const shareText = `🚗 GK APARTMENT CARE — ${apartment.name}
 

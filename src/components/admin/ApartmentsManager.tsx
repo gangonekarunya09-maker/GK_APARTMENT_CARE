@@ -43,6 +43,7 @@ export const ApartmentsManager: React.FC = () => {
     toggleApartmentStatus,
     generateCustomerPortalToken,
     getCustomerPortalUrl,
+    getCustomerPortalPath,
     createCampaign,
     adminSelectedCommunityId,
     setAdminSelectedCommunityId,
@@ -195,8 +196,7 @@ export const ApartmentsManager: React.FC = () => {
   };
 
   const handleOpenPortal = (apt: Apartment) => {
-    const path = getCustomerPortalUrl(apt).replace(/^https?:\/\/[^/]+/, '') || `/c/${apt.slug}`;
-    navigate(path);
+    navigate(getCustomerPortalPath(apt));
   };
 
   // Section 4: WhatsApp Message format
@@ -691,9 +691,8 @@ ${url}
         </button>
       </div>
 
-      {/* Just Created Success Banner — shows the generated portal URL with
-          copy / open / share actions. URL is origin-derived at runtime
-          (localhost in dev, the Vercel domain in production). */}
+      {/* Just Created Success Banner — shows the canonical customer portal URL
+          (getCustomerPortalUrl) with copy / open / share actions. */}
       <AnimatePresence>
         {justCreatedApt && (
           <motion.div

@@ -105,7 +105,7 @@ feature folders except for `common`:
 
 Cross-component imports: `public` and `admin` screens reuse `common/Logo`; the root `App.tsx`
 composes `common` (Navbar/Footer) with `resident` views and global modals
-(`BookingModal`, `WhatsAppShareModal`, `SocietySelectorModal`).
+(`BookingModal`, `WhatsAppShareModal`).
 
 ## Deployment Notes (Vercel)
 

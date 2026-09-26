@@ -5,7 +5,7 @@ import { Building2, ShieldCheck, Phone, Mail, MessageCircle, Heart, X } from 'lu
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Footer: React.FC = () => {
-  const { setResidentTab, navigate, setSocietySelectorOpen } = useApp();
+  const { setResidentTab, navigate } = useApp();
   const [legalModal, setLegalModal] = useState<string | null>(null);
 
   return (
@@ -36,14 +36,6 @@ export const Footer: React.FC = () => {
                   className="hover:text-[#2596be] transition-colors cursor-pointer"
                 >
                   Explore Home &amp; Auto Services
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setSocietySelectorOpen(true)}
-                  className="hover:text-[#2596be] transition-colors cursor-pointer"
-                >
-                  Select / Switch Community
                 </button>
               </li>
               <li>

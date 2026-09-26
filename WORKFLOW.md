@@ -60,12 +60,12 @@ campaign        community        /admin*           resident (default)
    │               │               │                   │
    ▼               ▼               ▼                   ▼
 fetchCampaign   fetchApartment   isAdminReady?      Navbar + tab views
-ByToken()       ForPortal()      │no → AdminLogin   services / community /
+ByToken()       ForPortal()      │no → AdminLogin   services / my-bookings /
 (campaigns      (apartments      │yes→ AdminDashboard  my-bookings / rwa / vendor
  table only)     only + scoped   (+ is_admin() RLS)  + global modals:
    │             services &                          BookingModal,
    ▼             campaigns)                          WhatsAppShareModal,
-found? ─ yes →                                       SocietySelectorModal
+found? ─ yes →
 PublicCampaignPage
    │ no                     not found / error on any route
    ▼                                  ▼
@@ -157,7 +157,7 @@ in_progress → completed        (realtime keeps every screen in sync)
 
 ```mermaid
 flowchart TD
-    A[Select society — SocietySelectorModal] --> B[ServiceCatalog: filter/search services]
+    A[Open site or /c/:slug/:token link] --> B[ServiceCatalog: filter/search services]
     B --> C[ServiceCard: Book → BookingModal]
     C --> D[Flat / date / slot details]
     D --> E[createBooking → bookings table<br/>booking number GK-XX-NNNNN]
