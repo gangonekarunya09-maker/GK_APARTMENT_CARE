@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getPublicBaseUrl } from '../../lib/router';
-import { Campaign, CampaignStatus, ServiceProvider } from '../../types';
+import { Campaign, CampaignStatus, ServiceProvider, Booking, BookingStatus, ResidentRequest } from '../../types';
 import {
   ArrowLeft,
   Building2,
@@ -16,6 +16,7 @@ import {
   Check,
   UserCheck,
   Calendar,
+  CalendarCheck,
   AlertCircle,
   ExternalLink,
   Wrench,
@@ -35,12 +36,18 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
     services,
     providers,
     residentRequests,
+    bookings,
     updateCampaignStatus,
+    updateBookingStatus,
     assignProviderToCampaign,
+    createBooking,
   } = useApp();
 
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [bookingFilter, setBookingFilter] = useState<'all' | BookingStatus>('all');
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [convertSuccess, setConvertSuccess] = useState<string | null>(null);
 
   const campaign = campaigns.find(c => c.id === campaignId);
   const apartment = apartments.find(a => a.id === campaign?.apartmentId);
@@ -49,6 +56,19 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
 
   // Filter requests belonging exclusively to this campaign
   const requests = residentRequests.filter(r => r.campaignId === campaignId);
+
+  // Filter bookings belonging exclusively to this community campaign
+  const campaignBookings = bookings.filter(b => {
+    if (b.campaignId && b.campaignId === campaignId) return true;
+    if (b.notes && (b.notes.includes(campaignId) || (campaign?.token && b.notes.includes(campaign.token)))) return true;
+    if (campaign && b.apartmentId === campaign.apartmentId && b.serviceId === campaign.serviceId) return true;
+    return false;
+  });
+
+  const filteredCampaignBookings = campaignBookings.filter(b => {
+    if (bookingFilter !== 'all' && b.status !== bookingFilter) return false;
+    return true;
+  });
 
   if (!campaign || !apartment || !service) {
     return (
@@ -137,7 +157,7 @@ ${publicUrl}`;
       </div>
 
       {/* Grid: Overview & Public Link & Demand */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Demand Target */}
         <div className="bg-white p-5 rounded-2xl border border-[#E5E7EB] shadow-xs space-y-3">
           <div className="flex items-center justify-between">
@@ -174,7 +194,37 @@ ${publicUrl}`;
           </div>
         </div>
 
-        {/* Card 2: Pricing Setup */}
+        {/* Card 2: Confirmed Campaign Orders */}
+        <div className="bg-white p-5 rounded-2xl border border-[#E5E7EB] shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#667085] uppercase tracking-wider">
+              Campaign Bookings
+            </span>
+            <CalendarCheck className="w-4 h-4 text-[#2E8B57]" />
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-[#142326] font-mono tabular-nums">
+              {campaignBookings.length}
+            </span>
+            <span className="text-sm font-semibold text-[#667085]">
+              confirmed jobs
+            </span>
+          </div>
+
+          <div className="text-xs text-[#2E8B57] font-bold flex items-center justify-between pt-1">
+            <span>Total Value:</span>
+            <span className="font-mono text-sm">
+              ₹{campaignBookings.reduce((sum, b) => sum + (b.price || 0), 0)}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-[#667085]">
+            {campaignBookings.filter(b => b.status === 'completed').length} completed · {campaignBookings.filter(b => b.status === 'in_progress').length} active
+          </div>
+        </div>
+
+        {/* Card 3: Pricing Setup */}
         <div className="bg-white p-5 rounded-2xl border border-[#E5E7EB] shadow-xs space-y-2">
           <span className="text-xs font-bold text-[#667085] uppercase tracking-wider block">
             Pricing Configuration
@@ -200,7 +250,7 @@ ${publicUrl}`;
           </div>
         </div>
 
-        {/* Card 3: Public Link Distribution */}
+        {/* Card 4: Public Link Distribution */}
         <div className="bg-white p-5 rounded-2xl border border-[#E5E7EB] shadow-xs space-y-3">
           <span className="text-xs font-bold text-[#667085] uppercase tracking-wider block">
             Public WhatsApp Link
@@ -357,6 +407,177 @@ ${publicUrl}`;
         </div>
       </div>
 
+      {/* Confirmed Campaign Bookings (ONLY bookings done in this community campaign) */}
+      <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E7EB] pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 text-[#2596be]" />
+              <h3 className="text-base font-bold text-[#142326]">
+                Confirmed Campaign Bookings ({campaignBookings.length})
+              </h3>
+            </div>
+            <p className="text-xs text-[#667085] mt-0.5">
+              Only showing confirmed doorstep orders booked specifically for this {service.name} campaign at {apartment.name}.
+            </p>
+          </div>
+
+          {/* Status filter tabs */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(['all', 'received', 'vendor_assigned', 'in_progress', 'completed'] as const).map(st => {
+              const count = st === 'all' ? campaignBookings.length : campaignBookings.filter(b => b.status === st).length;
+              return (
+                <button
+                  key={st}
+                  onClick={() => setBookingFilter(st)}
+                  className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors cursor-pointer ${
+                    bookingFilter === st
+                      ? 'bg-[#2596be] text-white'
+                      : 'bg-[#F8F9FA] text-[#667085] hover:bg-[#E5E7EB] hover:text-[#142326]'
+                  }`}
+                >
+                  {st === 'all' ? 'All' : st.replace('_', ' ')} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {convertSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 bg-[#2E8B57]/10 border border-[#2E8B57]/30 text-[#2E8B57] text-xs font-semibold rounded-xl flex items-center justify-between"
+          >
+            <span>✓ {convertSuccess}</span>
+            <button onClick={() => setConvertSuccess(null)} className="text-[#2E8B57] hover:underline font-bold">
+              Dismiss
+            </button>
+          </motion.div>
+        )}
+
+        {filteredCampaignBookings.length === 0 ? (
+          <div className="p-8 text-center bg-[#F8F9FA] rounded-xl border border-dashed border-[#E5E7EB]">
+            <CalendarCheck className="w-8 h-8 text-[#667085]/40 mx-auto mb-2" />
+            <p className="text-sm font-bold text-[#142326]">No Bookings in this Filter</p>
+            <p className="text-xs text-[#667085] mt-1">
+              {campaignBookings.length === 0
+                ? 'No resident bookings confirmed for this campaign yet. Residents can book via the public campaign link, or you can convert interested requests below.'
+                : 'No bookings match the selected status filter.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredCampaignBookings.map(b => (
+              <div
+                key={b.id}
+                className="p-4 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] hover:border-[#2596be]/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+              >
+                {/* Left: Booking Details */}
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-bold text-[#2596be] bg-[#2596be]/10 px-2 py-0.5 rounded">
+                      {b.bookingNumber}
+                    </span>
+                    <strong className="text-sm text-[#142326]">{b.residentName}</strong>
+                    <span className="font-bold text-[#142326]">
+                      {b.block}, Flat {b.flatNumber}
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wider ${
+                        b.status === 'completed'
+                          ? 'bg-[#2E8B57]/10 text-[#2E8B57]'
+                          : b.status === 'in_progress'
+                          ? 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                          : b.status === 'vendor_assigned'
+                          ? 'bg-[#2596be]/10 text-[#2596be]'
+                          : 'bg-[#667085]/10 text-[#667085]'
+                      }`}
+                    >
+                      {b.status.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 text-[#667085]">
+                    <span className="flex items-center gap-1 font-medium text-[#142326]">
+                      <Calendar className="w-3.5 h-3.5 text-[#2596be]" />
+                      {b.date} · {b.slot}
+                    </span>
+                    <span>·</span>
+                    <span>Price: <strong className="text-[#142326] font-mono">₹{b.price}</strong> ({b.bookingType === 'sunday_bulk' ? 'Sunday Bulk Rate' : 'Standard Rate'})</span>
+                    <span>·</span>
+                    <a href={`tel:${b.phone}`} className="text-[#2596be] font-mono hover:underline">
+                      {b.phone}
+                    </a>
+                  </div>
+
+                  {b.providerName && (
+                    <div className="text-[11px] text-[#2E8B57] font-semibold flex items-center gap-1.5">
+                      <UserCheck className="w-3 h-3" />
+                      <span>Assigned Partner: {b.providerName} {b.providerPhone ? `(${b.providerPhone})` : ''}</span>
+                    </div>
+                  )}
+
+                  {b.notes && (
+                    <div className="text-[11px] text-[#667085] italic">Note: {b.notes}</div>
+                  )}
+                </div>
+
+                {/* Right: Actions */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[#E5E7EB]">
+                  {/* Status advance action */}
+                  {b.status === 'received' && (
+                    <button
+                      onClick={() => updateBookingStatus(b.id, 'vendor_assigned', provider?.id)}
+                      className="px-2.5 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-semibold rounded-lg shadow-xs cursor-pointer"
+                    >
+                      Assign Vendor
+                    </button>
+                  )}
+                  {b.status === 'vendor_assigned' && (
+                    <button
+                      onClick={() => updateBookingStatus(b.id, 'in_progress')}
+                      className="px-2.5 py-1.5 bg-[#F59E0B] hover:bg-[#d97706] text-white text-xs font-semibold rounded-lg shadow-xs cursor-pointer"
+                    >
+                      Start Job
+                    </button>
+                  )}
+                  {b.status === 'in_progress' && (
+                    <button
+                      onClick={() => updateBookingStatus(b.id, 'completed')}
+                      className="px-2.5 py-1.5 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-semibold rounded-lg shadow-xs cursor-pointer"
+                    >
+                      ✓ Mark Completed
+                    </button>
+                  )}
+
+                  {/* Direct Contact Buttons */}
+                  <a
+                    href={`tel:${b.phone}`}
+                    className="p-1.5 bg-white border border-[#E5E7EB] hover:border-[#2596be] text-[#2596be] rounded-lg transition-colors"
+                    title="Call Resident"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                  </a>
+
+                  <a
+                    href={`https://wa.me/${b.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                      `Hi ${b.residentName}! Connecting from GK Apartment Care regarding your booking ${b.bookingNumber} for ${service.name} at ${apartment.name}.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 bg-[#2E8B57] hover:bg-[#257347] text-white rounded-lg transition-colors shadow-xs"
+                    title="WhatsApp Resident"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Resident Requests (Private to Admin) (Sections 7, 9, 26) */}
       <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
@@ -365,7 +586,7 @@ ${publicUrl}`;
               Resident Demand Requests ({requests.length})
             </h3>
             <p className="text-xs text-[#667085]">
-              Private operator view. Residents only see aggregate counts.
+              Residents who expressed interest in this campaign. Convert interested flats to confirmed bookings with 1-click.
             </p>
           </div>
         </div>
@@ -376,48 +597,95 @@ ${publicUrl}`;
           </div>
         ) : (
           <div className="space-y-2.5">
-            {requests.map(req => (
-              <div
-                key={req.id}
-                className="p-3.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <strong className="text-sm text-[#142326]">{req.residentName}</strong>
-                    <span className="font-semibold text-[#2596be]">
-                      {req.block}, Flat {req.flatNumber}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 text-[#667085]">
-                    <a href={`tel:${req.phone}`} className="text-[#2596be] hover:underline font-mono">
-                      {req.phone}
-                    </a>
-                    <span>·</span>
-                    <span>Prefers: {req.preferredDate || 'Sunday'} · {req.preferredSlot || 'Morning'}</span>
-                  </div>
-                  {req.notes && (
-                    <div className="text-[11px] text-[#667085] italic">Note: {req.notes}</div>
-                  )}
-                </div>
+            {requests.map(req => {
+              const alreadyBooked = campaignBookings.some(
+                b => b.flatNumber.toLowerCase() === req.flatNumber.toLowerCase() && b.block.toLowerCase() === req.block.toLowerCase()
+              );
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] text-[#667085]">
-                    {new Date(req.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <a
-                    href={`https://wa.me/${req.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Hi ${req.residentName}! Connecting from GK Apartment Care regarding your ${service.name} request for Flat ${req.flatNumber} at ${apartment.name}.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 bg-[#2E8B57]/10 text-[#2E8B57] hover:bg-[#2E8B57]/20 rounded-lg"
-                    title="WhatsApp resident"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </a>
+              return (
+                <div
+                  key={req.id}
+                  className="p-3.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <strong className="text-sm text-[#142326]">{req.residentName}</strong>
+                      <span className="font-semibold text-[#2596be]">
+                        {req.block}, Flat {req.flatNumber}
+                      </span>
+                      {alreadyBooked && (
+                        <span className="text-[10px] px-2 py-0.5 bg-[#2E8B57]/10 text-[#2E8B57] font-bold rounded">
+                          ✓ Booking Confirmed
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 text-[#667085]">
+                      <a href={`tel:${req.phone}`} className="text-[#2596be] hover:underline font-mono">
+                        {req.phone}
+                      </a>
+                      <span>·</span>
+                      <span>Prefers: {req.preferredDate || 'Sunday'} · {req.preferredSlot || 'Morning'}</span>
+                    </div>
+                    {req.notes && (
+                      <div className="text-[11px] text-[#667085] italic">Note: {req.notes}</div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!alreadyBooked && (
+                      <button
+                        onClick={async () => {
+                          setConvertingId(req.id);
+                          try {
+                            const res = await createBooking({
+                              serviceId: campaign.serviceId,
+                              apartmentId: campaign.apartmentId,
+                              residentName: req.residentName,
+                              phone: req.phone,
+                              email: req.email,
+                              block: req.block,
+                              flatNumber: req.flatNumber,
+                              date: req.preferredDate || campaign.availableDates[0] || 'Upcoming Sunday',
+                              slot: req.preferredSlot || campaign.availableSlots[0] || '09:00 AM - 11:00 AM',
+                              price: campaign.sundayBulkPrice || campaign.communityPrice,
+                              bookingType: 'sunday_bulk',
+                              campaignId: campaign.id,
+                              notes: req.notes ? `[Converted] ${req.notes}` : `Converted from resident interest poll.`,
+                            });
+                            if (res.success) {
+                              setConvertSuccess(`Booking ${res.data?.bookingNumber} created for ${req.residentName} (Flat ${req.flatNumber})!`);
+                              setTimeout(() => setConvertSuccess(null), 4000);
+                            }
+                          } finally {
+                            setConvertingId(null);
+                          }
+                        }}
+                        disabled={convertingId === req.id}
+                        className="px-2.5 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <CalendarCheck className="w-3.5 h-3.5" />
+                        <span>{convertingId === req.id ? 'Booking…' : 'Convert to Booking'}</span>
+                      </button>
+                    )}
+
+                    <span className="text-[11px] text-[#667085]">
+                      {new Date(req.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <a
+                      href={`https://wa.me/${req.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                        `Hi ${req.residentName}! Connecting from GK Apartment Care regarding your ${service.name} request for Flat ${req.flatNumber} at ${apartment.name}.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 bg-[#2E8B57]/10 text-[#2E8B57] hover:bg-[#2E8B57]/20 rounded-lg"
+                      title="WhatsApp resident"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

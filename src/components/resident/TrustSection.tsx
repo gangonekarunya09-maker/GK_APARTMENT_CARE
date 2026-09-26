@@ -19,26 +19,8 @@ export const TrustSection: React.FC = () => {
           </p>
         </div>
 
-        {/* 3 Trust Cards - vertical stack on mobile, responsive grid, no horizontal row overflow */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.25 }}
-            className="p-5 bg-white rounded-2xl border border-[#E5E7EB] shadow-xs space-y-2.5"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[#2596be]/10 text-[#2596be] flex items-center justify-center">
-              <KeySquare className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#142326]">
-              Pre-Registered Gate Entry
-            </h3>
-            <p className="text-xs text-[#667085] leading-relaxed">
-              Every technician passes through automated MyGate and NoBrokerHood digital gate approvals. Zero entry delays or guard calls at your intercom.
-            </p>
-          </motion.div>
-
+        {/* Trust Cards - responsive grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-4">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}

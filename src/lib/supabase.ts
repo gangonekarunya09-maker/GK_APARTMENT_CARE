@@ -11,8 +11,24 @@ import {
   VendorApplication,
 } from '../types';
 
-const RAW_SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const RAW_SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const FALLBACK_SUPABASE_URL = 'https://dhbnbitsiuvqqkikeitv.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY = 'sb_publishable_3kOPgvVnyiI79mxmmpU5kA_sPWrUT8p';
+
+const rawEnvUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const rawEnvKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+const isPlaceholder = (val: string, placeholderPrefixes: string[]) =>
+  !val || placeholderPrefixes.some(p => val.toLowerCase().includes(p));
+
+const RAW_SUPABASE_URL =
+  !isPlaceholder(rawEnvUrl, ['your-project', 'example.supabase.co'])
+    ? rawEnvUrl
+    : FALLBACK_SUPABASE_URL;
+
+const RAW_SUPABASE_ANON_KEY =
+  !isPlaceholder(rawEnvKey, ['your-', 'my_gemini_api_key'])
+    ? rawEnvKey
+    : FALLBACK_SUPABASE_ANON_KEY;
 
 const isPlaceholderUrl =
   !RAW_SUPABASE_URL ||
@@ -305,6 +321,13 @@ export function mapBookingFromDb(data: any): Booking {
     providerId: data.provider_id || data.providerId,
     providerName: data.provider_name || data.providerName,
     providerPhone: data.provider_phone || data.providerPhone,
+    campaignId:
+      data.campaign_id ||
+      data.campaignId ||
+      (() => {
+        const m = (data.notes || '').match(/\[Campaign: ([^\]]+)\]/);
+        return m ? m[1] : undefined;
+      })(),
     notes: data.notes || '',
     createdAt: data.created_at || data.createdAt || new Date().toISOString(),
     updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
@@ -312,6 +335,12 @@ export function mapBookingFromDb(data: any): Booking {
 }
 
 export function mapBookingToDb(b: Booking): any {
+  let mappedNotes = b.notes || '';
+  if (b.campaignId && !mappedNotes.includes(`[Campaign: ${b.campaignId}]`)) {
+    mappedNotes = mappedNotes
+      ? `${mappedNotes} [Campaign: ${b.campaignId}]`
+      : `[Campaign: ${b.campaignId}]`;
+  }
   return {
     id: b.id,
     booking_number: b.bookingNumber,
@@ -332,7 +361,7 @@ export function mapBookingToDb(b: Booking): any {
     provider_id: b.providerId ?? null,
     provider_name: b.providerName,
     provider_phone: b.providerPhone,
-    notes: b.notes,
+    notes: mappedNotes,
     created_at: b.createdAt,
     updated_at: b.updatedAt,
   };

@@ -25,6 +25,7 @@ export const CampaignsManager: React.FC = () => {
     campaigns,
     apartments,
     services,
+    bookings,
     createCampaign,
     activeCampaignId,
     setActiveCampaignId,
@@ -251,6 +252,24 @@ export const CampaignsManager: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Confirmed Campaign Bookings Metric */}
+                {(() => {
+                  const campBookings = bookings.filter(
+                    b =>
+                      (b.campaignId && b.campaignId === camp.id) ||
+                      (b.notes && (b.notes.includes(camp.id) || (camp.token && b.notes.includes(camp.token)))) ||
+                      (b.apartmentId === camp.apartmentId && b.serviceId === camp.serviceId)
+                  );
+                  return (
+                    <div className="flex items-center justify-between text-xs px-2.5 py-1.5 bg-[#2596be]/5 border border-[#2596be]/20 rounded-lg">
+                      <span className="text-[#667085] font-medium">Campaign Bookings:</span>
+                      <span className="font-bold text-[#2596be] font-mono">
+                        {campBookings.length} confirmed
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Pricing Box */}
                 <div className="p-2.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex items-center justify-between text-xs">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Apartment, Service, Campaign, ResidentRequest } from '../../types';
 import { Logo } from '../common/Logo';
@@ -54,16 +54,31 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
   const [interestSubmitted, setInterestSubmitted] = useState<ResidentRequest | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Campaigns this resident has already registered interest for (detected via
-  // the duplicate-interest result; the server enforces the same rule).
-  const [registeredCampaignIds, setRegisteredCampaignIds] = useState<Set<string>>(new Set());
+  // Campaigns this resident has already registered interest for (persisted in localStorage)
+  const [registeredCampaignIds, setRegisteredCampaignIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`gk_registered_campaigns_${apartment.id}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
+  const savedProfile = (() => {
+    try {
+      const raw = localStorage.getItem('gk_resident_profile');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Form State matching Section 9 specification
-  const [residentName, setResidentName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [block, setBlock] = useState('');
-  const [flatNumber, setFlatNumber] = useState('');
+  const [residentName, setResidentName] = useState(savedProfile?.name || '');
+  const [phone, setPhone] = useState(savedProfile?.phone?.replace(/^\+91\s*/, '') || '');
+  const [block, setBlock] = useState(savedProfile?.block || '');
+  const [flatNumber, setFlatNumber] = useState(savedProfile?.flatNumber || '');
   const [preferredSlot, setPreferredSlot] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -81,6 +96,46 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
   const communityCampaigns = useMemo(() => {
     return campaigns.filter(c => c.apartmentId === apartment.id);
   }, [campaigns, apartment.id]);
+
+  // Sync registeredCampaignIds if resident has matching requests in AppContext
+  useEffect(() => {
+    if (!savedProfile?.phone && !savedProfile?.flatNumber) return;
+    const cleanPhone = (savedProfile.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const cleanFlat = (savedProfile.flatNumber || '').trim().toLowerCase();
+
+    const matchingCampaignIds = residentRequests
+      .filter(r => {
+        const rPhone = r.phone.replace(/[^0-9]/g, '').slice(-10);
+        const rFlat = r.flatNumber.trim().toLowerCase();
+        return (cleanPhone && rPhone === cleanPhone) || (cleanFlat && rFlat === cleanFlat);
+      })
+      .map(r => r.campaignId);
+
+    if (matchingCampaignIds.length > 0) {
+      setRegisteredCampaignIds(prev => {
+        const next = new Set(prev);
+        let changed = false;
+        matchingCampaignIds.forEach(id => {
+          if (!next.has(id)) {
+            next.add(id);
+            changed = true;
+          }
+        });
+        if (changed) {
+          try {
+            localStorage.setItem(
+              `gk_registered_campaigns_${apartment.id}`,
+              JSON.stringify(Array.from(next))
+            );
+          } catch {
+            // ignore
+          }
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [residentRequests, apartment.id, savedProfile]);
 
   const handleOpenInterest = (camp: Campaign) => {
     setSelectedCampaign(camp);
@@ -114,11 +169,59 @@ export const CommunityCustomerPortal: React.FC<CommunityCustomerPortalProps> = (
 
       if (result.success && result.data) {
         setInterestSubmitted(result.data);
-        setRegisteredCampaignIds(prev => new Set(prev).add(selectedCampaign.id));
+        try {
+          localStorage.setItem(
+            'gk_resident_profile',
+            JSON.stringify({
+              name: residentName.trim(),
+              phone: phone.trim(),
+              block: block.trim() || 'Block A',
+              flatNumber: flatNumber.trim(),
+            })
+          );
+        } catch {
+          // ignore
+        }
+        setRegisteredCampaignIds(prev => {
+          const next = new Set(prev).add(selectedCampaign.id);
+          try {
+            localStorage.setItem(
+              `gk_registered_campaigns_${apartment.id}`,
+              JSON.stringify(Array.from(next))
+            );
+          } catch {
+            // ignore
+          }
+          return next;
+        });
       } else {
         if (result.alreadyRegistered) {
           setAlreadyRegistered(true);
-          setRegisteredCampaignIds(prev => new Set(prev).add(selectedCampaign.id));
+          try {
+            localStorage.setItem(
+              'gk_resident_profile',
+              JSON.stringify({
+                name: residentName.trim(),
+                phone: phone.trim(),
+                block: block.trim() || 'Block A',
+                flatNumber: flatNumber.trim(),
+              })
+            );
+          } catch {
+            // ignore
+          }
+          setRegisteredCampaignIds(prev => {
+            const next = new Set(prev).add(selectedCampaign.id);
+            try {
+              localStorage.setItem(
+                `gk_registered_campaigns_${apartment.id}`,
+                JSON.stringify(Array.from(next))
+              );
+            } catch {
+              // ignore
+            }
+            return next;
+          });
         }
         setSubmitError(result.error || 'Could not save your request. Please try again.');
       }

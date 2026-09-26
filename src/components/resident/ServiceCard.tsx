@@ -9,11 +9,8 @@ import {
   Home,
   ShieldCheck,
   Clock,
-  Users,
   Share2,
   CalendarCheck,
-  CheckCircle2,
-  AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -25,16 +22,13 @@ interface ServiceCardProps {
 export const ServiceCard: React.FC<ServiceCardProps> = ({ service, category }) => {
   const { setBookingModalService, setShareModalService, selectedApartment, campaigns } = useApp();
 
-  // Connect to the exact community campaign for this apartment and service
+  // Connect to the exact community campaign for this apartment and service if present
   const campaign = campaigns.find(
     c => c.apartmentId === selectedApartment?.id && c.serviceId === service.id
   );
 
   const normalPrice = campaign ? campaign.normalPrice : service.normalPrice;
   const communityPrice = campaign ? campaign.communityPrice : service.communityPrice;
-  const sundayBulkPrice = campaign ? (campaign.sundayBulkPrice ?? service.sundayBulkPrice) : service.sundayBulkPrice;
-  const currentDemand = campaign ? campaign.currentDemand : service.currentDemand;
-  const minimumDemand = campaign ? campaign.minimumDemand : service.minimumDemand;
 
   const getIcon = (name: string) => {
     switch (name) {
@@ -52,14 +46,6 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, category }) =
         return <ShieldCheck className="w-5 h-5" />;
     }
   };
-
-  const percentBooked = Math.min(
-    100,
-    Math.round((currentDemand / minimumDemand) * 100)
-  );
-
-  const neededResidents = Math.max(0, minimumDemand - currentDemand);
-  const isTargetReached = neededResidents === 0;
 
   return (
     <motion.div
@@ -102,82 +88,35 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, category }) =
           {service.description}
         </p>
 
-        {/* Pricing comparison - clean vertical breakdown */}
-        <div className="bg-[#F8F9FA] rounded-xl p-3 border border-[#E5E7EB] mb-4 space-y-2">
+        {/* Pricing comparison - clean solo doorstep rate with community discount */}
+        <div className="bg-[#F8F9FA] rounded-xl p-3 border border-[#E5E7EB] mb-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-[#667085]">Individual Doorstep</span>
+            <span className="text-[#667085]">Standard Price</span>
             <span className="text-[#667085] line-through font-mono tabular-nums">
               ₹{normalPrice.toLocaleString('en-IN')}
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#142326]">Community Resident Price</span>
-            <span className="font-bold text-[#142326] font-mono tabular-nums">
-              ₹{communityPrice.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-[#E5E7EB]">
-            <div className="flex items-center gap-1.5 text-[#2596be] font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Sunday Bulk Pool</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs px-1.5 py-0.5 bg-[#2596be]/10 text-[#2596be] font-bold rounded">
-                Save ₹{(normalPrice - sundayBulkPrice).toLocaleString('en-IN')}
-              </span>
-              <span className="text-sm font-extrabold text-[#2596be] font-mono tabular-nums">
-                ₹{sundayBulkPrice.toLocaleString('en-IN')}
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#E5E7EB]">
+            <span className="font-bold text-[#142326]">Doorstep Service Price</span>
+            <div className="flex items-center gap-1.5">
+              {normalPrice > communityPrice && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-[#2E8B57]/10 text-[#2E8B57] font-bold rounded">
+                  Save ₹{(normalPrice - communityPrice).toLocaleString('en-IN')}
+                </span>
+              )}
+              <span className="text-base font-extrabold text-[#2596be] font-mono tabular-nums">
+                ₹{communityPrice.toLocaleString('en-IN')}
               </span>
             </div>
-          </div>
-        </div>
-
-        {/* Sunday Community Demand Meter */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-[11px] mb-1.5 font-medium">
-            <span className="text-[#142326] font-semibold flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-[#2596be]" />
-              <span>Sunday Demand Pool</span>
-            </span>
-            <span className="text-[#667085] font-mono tabular-nums">
-              {currentDemand} / {minimumDemand} booked
-            </span>
-          </div>
-
-          {/* Animated Progress bar */}
-          <div className="w-full h-2 bg-[#E5E7EB] rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${
-                isTargetReached ? 'bg-[#2E8B57]' : 'bg-[#2596be]'
-              }`}
-              initial={{ width: 0 }}
-              animate={{ width: `${percentBooked}%` }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-            />
-          </div>
-
-          <div className="mt-1.5 flex items-center justify-between text-[11px]">
-            {isTargetReached ? (
-              <span className="text-[#2E8B57] font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Bulk discount target achieved!</span>
-              </span>
-            ) : (
-              <span className="text-[#667085]">
-                <strong className="text-[#142326] font-semibold">{neededResidents} more</strong> residents needed to unlock ₹{sundayBulkPrice}
-              </span>
-            )}
-            <span className="text-[10px] text-[#667085]">{percentBooked}%</span>
           </div>
         </div>
 
         {/* Service specs: duration & provider */}
         <div className="flex items-center justify-between text-[11px] text-[#667085] mb-4">
           <div className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{service.durationMinutes} mins per unit</span>
+            <Clock className="w-3.5 h-3.5 text-[#2596be]" />
+            <span>{service.durationMinutes} mins estimated</span>
           </div>
           {service.providerName && (
             <div className="truncate max-w-[150px] text-right">
@@ -194,14 +133,14 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, category }) =
           className="w-full py-2.5 px-4 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
         >
           <CalendarCheck className="w-4 h-4" />
-          <span>Book Service · From ₹{sundayBulkPrice}</span>
+          <span>Book Service · ₹{communityPrice}</span>
         </button>
 
         <button
           onClick={() => setShareModalService(service)}
           className="w-full py-1.5 text-center text-xs font-semibold text-[#2596be] hover:text-[#1e7ca0] transition-colors cursor-pointer"
         >
-          Share on WhatsApp Group
+          Share on WhatsApp
         </button>
       </div>
     </motion.div>

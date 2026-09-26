@@ -43,7 +43,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onBookNowClick }) =>
               transition={{ duration: 0.35, delay: 0.1 }}
               className="text-base sm:text-lg text-[#667085] max-w-2xl mx-auto font-normal leading-relaxed"
             >
-              On-demand home services 7 days a week + exclusive Sunday bulk discounts. Pre-cleared gate entry for Hyderabad societies.
+              On-demand doorstep home services 7 days a week with transparent pricing and verified professional staff across Hyderabad societies.
             </motion.p>
           </div>
 
@@ -76,18 +76,8 @@ export const Hero: React.FC<HeroProps> = ({ onExploreClick, onBookNowClick }) =>
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 text-left"
+            className="grid grid-cols-1 sm:grid-cols-2 max-w-xl mx-auto gap-3 pt-4 text-left"
           >
-            <div className="p-3 bg-white rounded-xl border border-[#E5E7EB] shadow-xs flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#2596be]/10 text-[#2596be] shrink-0 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-xs font-bold text-[#142326]">Pre-Registered Gate Entry</div>
-                <div className="text-[11px] text-[#667085]">MyGate / NoBrokerHood sync</div>
-              </div>
-            </div>
-
             <div className="p-3 bg-white rounded-xl border border-[#E5E7EB] shadow-xs flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-[#2596be]/10 text-[#2596be] shrink-0 flex items-center justify-center">
                 <Clock className="w-4 h-4" />

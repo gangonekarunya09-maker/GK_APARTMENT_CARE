@@ -43,20 +43,6 @@ export const Navbar: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setResidentTab('my-bookings')}
-            className={`hover:text-[#142326] transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              residentTab === 'my-bookings' ? 'text-[#2596be] font-semibold' : ''
-            }`}
-          >
-            <span>My Bookings</span>
-            {activeBookingsCount > 0 && (
-              <span className="text-xs px-1.5 py-0.2 bg-[#2596be]/10 text-[#2596be] font-bold rounded">
-                {activeBookingsCount}
-              </span>
-            )}
-          </button>
-
-          <button
             onClick={() => setResidentTab('rwa')}
             className={`hover:text-[#142326] transition-colors whitespace-nowrap cursor-pointer ${
               residentTab === 'rwa' ? 'text-[#2596be] font-semibold' : ''
@@ -115,28 +101,6 @@ export const Navbar: React.FC = () => {
                   <span>Explore Services</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-[#667085]" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setResidentTab('my-bookings');
-                  setMobileMenuOpen(false);
-                }}
-                className={`flex items-center justify-between p-2.5 rounded-lg text-sm font-medium ${
-                  residentTab === 'my-bookings'
-                    ? 'bg-[#2596be]/10 text-[#2596be] font-bold'
-                    : 'text-[#142326] hover:bg-[#F8F9FA]'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#2596be]" />
-                  <span>My Bookings</span>
-                </div>
-                {activeBookingsCount > 0 && (
-                  <span className="text-xs px-2 py-0.5 bg-[#2596be] text-white rounded font-bold">
-                    {activeBookingsCount}
-                  </span>
-                )}
               </button>
 
               <button

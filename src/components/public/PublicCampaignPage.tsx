@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Campaign, Apartment, Service } from '../../types';
 import { Logo } from '../common/Logo';
@@ -30,26 +30,66 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
   apartment,
   service,
 }) => {
-  const { submitResidentInterest } = useApp();
+  const { submitResidentInterest, residentRequests } = useApp();
 
+  const storageKey = `gk_interest_${campaign.id}`;
   const [formOpen, setFormOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(() => {
+    try {
+      return localStorage.getItem(`gk_interest_${campaign.id}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [copied, setCopied] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const savedProfile = (() => {
+    try {
+      const raw = localStorage.getItem('gk_resident_profile');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Form fields
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [block, setBlock] = useState('');
-  const [flatNumber, setFlatNumber] = useState('');
-  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState(savedProfile?.name || '');
+  const [phone, setPhone] = useState(savedProfile?.phone?.replace(/^\+91\s*/, '') || '');
+  const [block, setBlock] = useState(savedProfile?.block || '');
+  const [flatNumber, setFlatNumber] = useState(savedProfile?.flatNumber || '');
+  const [email, setEmail] = useState(savedProfile?.email || '');
   const preferredDateInit = campaign.availableDates[0] || 'Upcoming Sunday';
   const preferredSlotInit = campaign.availableSlots[0] || '09:00 AM – 11:00 AM';
   const [preferredDate, setPreferredDate] = useState(preferredDateInit);
   const [preferredSlot, setPreferredSlot] = useState(preferredSlotInit);
   const [notes, setNotes] = useState('');
+
+  // Check if current resident already registered in AppContext state
+  useEffect(() => {
+    if (alreadyRegistered || submitted) return;
+    if (!savedProfile?.phone && !savedProfile?.flatNumber) return;
+    const cleanPhone = (savedProfile.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const cleanFlat = (savedProfile.flatNumber || '').trim().toLowerCase();
+
+    const match = residentRequests.some(r => {
+      if (r.campaignId !== campaign.id) return false;
+      const rPhone = r.phone.replace(/[^0-9]/g, '').slice(-10);
+      const rFlat = r.flatNumber.trim().toLowerCase();
+      return (cleanPhone && rPhone === cleanPhone) || (cleanFlat && rFlat === cleanFlat);
+    });
+
+    if (match) {
+      setAlreadyRegistered(true);
+      try {
+        localStorage.setItem(storageKey, 'true');
+      } catch {
+        // ignore
+      }
+    }
+  }, [residentRequests, campaign.id, savedProfile, alreadyRegistered, submitted, storageKey]);
 
   if (!service || !apartment) {
     return (
@@ -91,11 +131,41 @@ export const PublicCampaignPage: React.FC<PublicCampaignPageProps> = ({
       if (result.success) {
         setSubmitted(true);
         setFormOpen(false);
+        try {
+          localStorage.setItem(storageKey, 'true');
+          localStorage.setItem(
+            'gk_resident_profile',
+            JSON.stringify({
+              name: fullName,
+              phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
+              block,
+              flatNumber,
+              email: email || '',
+            })
+          );
+        } catch {
+          // ignore
+        }
       } else if (result.alreadyRegistered) {
         // Same resident, same campaign: no second request was created — close
         // the form and show the already-registered state instead.
         setAlreadyRegistered(true);
         setFormOpen(false);
+        try {
+          localStorage.setItem(storageKey, 'true');
+          localStorage.setItem(
+            'gk_resident_profile',
+            JSON.stringify({
+              name: fullName,
+              phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
+              block,
+              flatNumber,
+              email: email || '',
+            })
+          );
+        } catch {
+          // ignore
+        }
       } else {
         setSubmitError(result.error || 'Could not save your request. Please try again.');
       }

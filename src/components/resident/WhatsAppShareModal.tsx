@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, MessageCircle, Copy, Check, Share2, Sparkles, Users } from 'lucide-react';
+import { X, MessageCircle, Copy, Check, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const WhatsAppShareModal: React.FC = () => {
@@ -18,24 +18,19 @@ export const WhatsAppShareModal: React.FC = () => {
 
   const normalPrice = campaign ? campaign.normalPrice : shareModalService.normalPrice;
   const communityPrice = campaign ? campaign.communityPrice : shareModalService.communityPrice;
-  const currentDemand = campaign ? campaign.currentDemand : shareModalService.currentDemand;
-  const minimumDemand = campaign ? campaign.minimumDemand : shareModalService.minimumDemand;
-  const needed = Math.max(0, minimumDemand - currentDemand);
 
   const messageText = `GK APARTMENT CARE
 
 Hello ${societyName} residents 👋
 
-You can view the available community services and register your interest here:
+Check out verified doorstep services available for our apartment:
 
 ${portalUrl}
 
 Service: ${shareModalService.name}
-Normal Price: ₹${normalPrice}
-Community Price: ₹${communityPrice}
-Current Demand: ${currentDemand} / ${minimumDemand} residents interested (${needed} more needed to trigger Sunday visit)
+Price: ₹${communityPrice} (Standard: ₹${normalPrice})
 
-Pre-cleared with ${selectedApartment?.gateSecurityApp || 'Security'}. Open community portal above to participate!`;
+Doorstep service by verified professionals. Open the link above to schedule your booking!`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
@@ -67,7 +62,7 @@ Pre-cleared with ${selectedApartment?.gateSecurityApp || 'Security'}. Open commu
                 Share on Community WhatsApp Group
               </h3>
               <p className="text-xs text-[#667085]">
-                Invite neighbors to unlock the Sunday bulk rate
+                Share doorstep service details with your neighbors
               </p>
             </div>
           </div>

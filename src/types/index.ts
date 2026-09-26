@@ -158,6 +158,7 @@ export interface Booking {
   providerId?: string;
   providerName?: string;
   providerPhone?: string;
+  campaignId?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

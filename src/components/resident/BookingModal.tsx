@@ -22,20 +22,30 @@ export const BookingModal: React.FC = () => {
     bookingModalService,
     setBookingModalService,
     selectedApartment,
+    campaigns,
     createBooking,
     setResidentTab,
     setTrackingBooking,
   } = useApp();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Slot & Type, 2: Resident Details, 3: Success Confirmation
-  const [bookingType, setBookingType] = useState<'sunday_bulk' | 'regular'>('sunday_bulk');
-  const [selectedDate, setSelectedDate] = useState<string>('Upcoming Sunday (27 Sep)');
+  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Slot & Date, 2: Resident Details, 3: Success Confirmation
+  const [selectedDate, setSelectedDate] = useState<string>('Tomorrow');
   const [selectedSlot, setSelectedSlot] = useState<string>('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [block, setBlock] = useState('');
-  const [flatNumber, setFlatNumber] = useState('');
-  const [email, setEmail] = useState('');
+  
+  const savedProfile = (() => {
+    try {
+      const raw = localStorage.getItem('gk_resident_profile');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const [fullName, setFullName] = useState(savedProfile?.name || '');
+  const [phone, setPhone] = useState(savedProfile?.phone || '');
+  const [block, setBlock] = useState(savedProfile?.block || '');
+  const [flatNumber, setFlatNumber] = useState(savedProfile?.flatNumber || '');
+  const [email, setEmail] = useState(savedProfile?.email || '');
   const [notes, setNotes] = useState('');
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -43,10 +53,7 @@ export const BookingModal: React.FC = () => {
 
   if (!bookingModalService) return null;
 
-  const currentPrice =
-    bookingType === 'sunday_bulk'
-      ? bookingModalService.sundayBulkPrice
-      : bookingModalService.communityPrice;
+  const currentPrice = bookingModalService.communityPrice;
 
   // Generate available slots based on service
   const slots = bookingModalService.availableSlots || [
@@ -70,9 +77,13 @@ export const BookingModal: React.FC = () => {
     setBookingError(null);
     setBookingSubmitting(true);
     try {
+      const activeCampaign = campaigns.find(
+        c => c.apartmentId === selectedApartment?.id && c.serviceId === bookingModalService.id
+      );
+
       const result = await createBooking({
         serviceId: bookingModalService.id,
-        apartmentId: selectedApartment?.id || 'apt-green-valley',
+        apartmentId: selectedApartment?.id || 'community_green_valley_001',
         residentName: fullName,
         phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
         email: email || undefined,
@@ -81,12 +92,27 @@ export const BookingModal: React.FC = () => {
         date: selectedDate,
         slot: activeSlot,
         price: currentPrice,
-        bookingType,
+        bookingType: 'regular',
+        campaignId: activeCampaign?.id,
         notes: notes || undefined,
       });
 
       if (result.success && result.data) {
         setCreatedBooking(result.data);
+        try {
+          localStorage.setItem(
+            'gk_resident_profile',
+            JSON.stringify({
+              name: fullName,
+              phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
+              block,
+              flatNumber,
+              email: email || '',
+            })
+          );
+        } catch {
+          // ignore
+        }
         setStep(3);
       } else {
         setBookingError(result.error || 'Could not create booking. Please try again.');
@@ -147,139 +173,64 @@ export const BookingModal: React.FC = () => {
               exit={{ opacity: 0, x: 10 }}
               className="space-y-5"
             >
-              {/* Option Selector: Regular vs Sunday Bulk */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[#142326]">Select Booking Type</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('sunday_bulk')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      bookingType === 'sunday_bulk'
-                        ? 'border-[#2596be] bg-[#2596be]/5'
-                        : 'border-[#E5E7EB] hover:border-[#2596be]/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#2596be]">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Sunday Bulk Pool</span>
-                      </div>
-                      <span className="text-sm font-extrabold text-[#2596be] font-mono tabular-nums">
-                        ₹{bookingModalService.sundayBulkPrice}
-                      </span>
+              {/* Service Pricing Summary */}
+              <div className="p-3.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#142326]">{bookingModalService.name}</div>
+                  <div className="text-[11px] text-[#667085]">Solo doorstep appointment</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-base font-extrabold text-[#2596be] font-mono tabular-nums">
+                    ₹{bookingModalService.communityPrice}
+                  </div>
+                  {bookingModalService.normalPrice > bookingModalService.communityPrice && (
+                    <div className="text-[10px] text-[#667085] line-through font-mono">
+                      ₹{bookingModalService.normalPrice}
                     </div>
-                    <p className="text-[11px] text-[#667085] leading-tight">
-                      Exclusive community rate coordinated on Sunday
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('regular')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      bookingType === 'regular'
-                        ? 'border-[#2596be] bg-[#2596be]/5'
-                        : 'border-[#E5E7EB] hover:border-[#2596be]/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-[#142326]">Regular Day Slot</span>
-                      <span className="text-sm font-bold text-[#142326] font-mono tabular-nums">
-                        ₹{bookingModalService.communityPrice}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#667085] leading-tight">
-                      Scheduled anytime on weekdays &amp; Saturdays
-                    </p>
-                  </button>
+                  )}
                 </div>
               </div>
-
-              {/* Sunday bulk explainer if selected */}
-              {bookingType === 'sunday_bulk' && (
-                <div className="p-3.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#142326] flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-[#2596be]" />
-                      <span>{selectedApartment?.name} Sunday Pool</span>
-                    </span>
-                    <span className="font-mono text-xs font-bold text-[#2596be] tabular-nums">
-                      {bookingModalService.currentDemand} / {bookingModalService.minimumDemand} Booked
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#2596be] rounded-full"
-                      style={{ width: `${percentBooked}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-[#667085]">
-                    Sunday community pricing applies when the required number of residents book this service. Coordinated provider visits mean zero gate hassles.
-                  </p>
-                </div>
-              )}
 
               {/* Date selection */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#142326] flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#2596be]" />
-                  <span>Service Date</span>
+                  <span>Select Service Date</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {bookingType === 'sunday_bulk' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDate('Upcoming Sunday (27 Sep)')}
-                        className={`p-2.5 rounded-lg border text-left text-xs font-medium cursor-pointer ${
-                          selectedDate.includes('27 Sep')
-                            ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
-                            : 'border-[#E5E7EB] text-[#142326]'
-                        }`}
-                      >
-                        <div className="text-[10px] text-[#667085]">Recommended</div>
-                        Sunday, 27 Sep
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDate('Next Sunday (4 Oct)')}
-                        className={`p-2.5 rounded-lg border text-left text-xs font-medium cursor-pointer ${
-                          selectedDate.includes('4 Oct')
-                            ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
-                            : 'border-[#E5E7EB] text-[#142326]'
-                        }`}
-                      >
-                        <div className="text-[10px] text-[#667085]">Following Week</div>
-                        Sunday, 4 Oct
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDate('Tomorrow (Weekday)')}
-                        className={`p-2.5 rounded-lg border text-left text-xs font-medium cursor-pointer ${
-                          selectedDate.includes('Tomorrow')
-                            ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
-                            : 'border-[#E5E7EB] text-[#142326]'
-                        }`}
-                      >
-                        Tomorrow
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDate('Saturday Regular Slot')}
-                        className={`p-2.5 rounded-lg border text-left text-xs font-medium cursor-pointer ${
-                          selectedDate.includes('Saturday')
-                            ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
-                            : 'border-[#E5E7EB] text-[#142326]'
-                        }`}
-                      >
-                        This Saturday
-                      </button>
-                    </>
-                  )}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate('Tomorrow')}
+                    className={`p-2.5 rounded-lg border text-center text-xs font-medium cursor-pointer ${
+                      selectedDate === 'Tomorrow'
+                        ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
+                        : 'border-[#E5E7EB] text-[#142326] hover:border-[#2596be]/30'
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate('Day After Tomorrow')}
+                    className={`p-2.5 rounded-lg border text-center text-xs font-medium cursor-pointer ${
+                      selectedDate === 'Day After Tomorrow'
+                        ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
+                        : 'border-[#E5E7EB] text-[#142326] hover:border-[#2596be]/30'
+                    }`}
+                  >
+                    Day After
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate('Upcoming Weekend')}
+                    className={`p-2.5 rounded-lg border text-center text-xs font-medium cursor-pointer ${
+                      selectedDate === 'Upcoming Weekend'
+                        ? 'border-[#2596be] bg-[#2596be]/10 text-[#2596be] font-bold'
+                        : 'border-[#E5E7EB] text-[#142326] hover:border-[#2596be]/30'
+                    }`}
+                  >
+                    Weekend
+                  </button>
                 </div>
               </div>
 

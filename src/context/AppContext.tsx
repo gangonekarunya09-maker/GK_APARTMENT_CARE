@@ -187,6 +187,7 @@ interface AppContextType {
     slot: string;
     price: number;
     bookingType: 'regular' | 'sunday_bulk';
+    campaignId?: string;
     notes?: string;
   }) => Promise<MutationResult<Booking>>;
   updateBookingStatus: (
@@ -218,10 +219,36 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  // Community selection is session-scoped (see selectedApartmentId) —
-  // only the admin UI section persists across visits.
   ADMIN_SECTION: 'gk_admin_section_v2',
+  DEMO_APARTMENTS: 'gk_demo_apartments_v1',
+  DEMO_CATEGORIES: 'gk_demo_categories_v1',
+  DEMO_PROVIDERS: 'gk_demo_providers_v1',
+  DEMO_SERVICES: 'gk_demo_services_v1',
+  DEMO_CAMPAIGNS: 'gk_demo_campaigns_v1',
+  DEMO_RESIDENT_REQUESTS: 'gk_demo_resident_requests_v1',
+  DEMO_BOOKINGS: 'gk_demo_bookings_v1',
+  DEMO_RWA_APPS: 'gk_demo_rwa_apps_v1',
+  DEMO_VENDOR_APPS: 'gk_demo_vendor_apps_v1',
 };
+
+function loadLocalData<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveLocalData(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Provider                                                            */
@@ -356,17 +383,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (!isBackendConnected) {
-      // Demo mode: seed from mocks once.
+      // Demo mode: load from localStorage or seed from mocks once.
       if (dataStatus === 'idle') {
-        setApartments(INITIAL_APARTMENTS);
-        setCategories(INITIAL_CATEGORIES);
-        setProviders(INITIAL_PROVIDERS);
-        setServices(INITIAL_SERVICES);
-        setCampaigns(INITIAL_CAMPAIGNS);
-        setResidentRequests(INITIAL_RESIDENT_REQUESTS);
-        setBookings(INITIAL_BOOKINGS);
-        setRwaApplications(INITIAL_RWA_APPLICATIONS);
-        setVendorApplications(INITIAL_VENDOR_APPLICATIONS);
+        setApartments(loadLocalData(STORAGE_KEYS.DEMO_APARTMENTS, INITIAL_APARTMENTS));
+        setCategories(loadLocalData(STORAGE_KEYS.DEMO_CATEGORIES, INITIAL_CATEGORIES));
+        setProviders(loadLocalData(STORAGE_KEYS.DEMO_PROVIDERS, INITIAL_PROVIDERS));
+        setServices(loadLocalData(STORAGE_KEYS.DEMO_SERVICES, INITIAL_SERVICES));
+        setCampaigns(loadLocalData(STORAGE_KEYS.DEMO_CAMPAIGNS, INITIAL_CAMPAIGNS));
+        setResidentRequests(loadLocalData(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS, INITIAL_RESIDENT_REQUESTS));
+        setBookings(loadLocalData(STORAGE_KEYS.DEMO_BOOKINGS, INITIAL_BOOKINGS));
+        setRwaApplications(loadLocalData(STORAGE_KEYS.DEMO_RWA_APPS, INITIAL_RWA_APPLICATIONS));
+        setVendorApplications(loadLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, INITIAL_VENDOR_APPLICATIONS));
         setDataStatus('demo');
       }
       return;
@@ -431,6 +458,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rwaApplications, setRwaApplications] = useState<RWAPartnershipApplication[]>([]);
   const [vendorApplications, setVendorApplications] = useState<VendorApplication[]>([]);
+
+  // Sync demo mode state changes to localStorage so that user interactions,
+  // interest registrations, and bookings persist across page reloads.
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_APARTMENTS, apartments);
+    }
+  }, [apartments, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_CATEGORIES, categories);
+    }
+  }, [categories, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_PROVIDERS, providers);
+    }
+  }, [providers, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_SERVICES, services);
+    }
+  }, [services, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_CAMPAIGNS, campaigns);
+    }
+  }, [campaigns, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS, residentRequests);
+    }
+  }, [residentRequests, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_BOOKINGS, bookings);
+    }
+  }, [bookings, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_RWA_APPS, rwaApplications);
+    }
+  }, [rwaApplications, isBackendConnected, dataStatus]);
+
+  useEffect(() => {
+    if (!isBackendConnected && dataStatus === 'demo') {
+      saveLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, vendorApplications);
+    }
+  }, [vendorApplications, isBackendConnected, dataStatus]);
 
   // NOTE: community selection is session-scoped by design — nothing persisted.
 
@@ -1246,6 +1329,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       slot: string;
       price: number;
       bookingType: 'regular' | 'sunday_bulk';
+      campaignId?: string;
       notes?: string;
     }): Promise<MutationResult<Booking>> => {
       if (!bookingData.serviceId || !bookingData.apartmentId) {
@@ -1283,6 +1367,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         providerId: prov?.id,
         providerName: prov?.businessName,
         providerPhone: prov?.phone,
+        campaignId: bookingData.campaignId,
         notes: bookingData.notes,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1418,6 +1503,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       void loadSupabaseData();
       return;
     }
+    localStorage.removeItem(STORAGE_KEYS.DEMO_APARTMENTS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_CATEGORIES);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_PROVIDERS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_SERVICES);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_CAMPAIGNS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_BOOKINGS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_RWA_APPS);
+    localStorage.removeItem(STORAGE_KEYS.DEMO_VENDOR_APPS);
     setApartments(INITIAL_APARTMENTS);
     setCategories(INITIAL_CATEGORIES);
     setProviders(INITIAL_PROVIDERS);

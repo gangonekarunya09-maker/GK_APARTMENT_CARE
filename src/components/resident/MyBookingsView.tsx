@@ -119,7 +119,7 @@ export const MyBookingsView: React.FC = () => {
                       </span>
                       <span>·</span>
                       <span className="text-xs text-[#667085]">
-                        {b.bookingType === 'sunday_bulk' ? 'Sunday Bulk Pool' : 'Regular Slot'}
+                        {b.bookingType === 'sunday_bulk' ? 'Community Bulk Campaign' : 'Doorstep Booking'}
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-[#142326]">{b.serviceName}</h3>

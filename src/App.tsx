@@ -10,7 +10,6 @@ import { RWAPartnershipsView } from './components/resident/RWAPartnershipsView';
 import { VendorOnboardingView } from './components/resident/VendorOnboardingView';
 import { BookingModal } from './components/resident/BookingModal';
 import { WhatsAppShareModal } from './components/resident/WhatsAppShareModal';
-import { MobileStickyCTA } from './components/resident/MobileStickyCTA';
 import { Footer } from './components/common/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -441,26 +440,10 @@ const AppRouter: React.FC = () => {
       </main>
 
       <Footer />
-      <MobileStickyCTA />
 
       {/* Global interactive modals */}
       <BookingModal />
       <WhatsAppShareModal />
-
-      {/* Demo-mode banner: production data comes from Supabase */}
-      {dataStatus === 'demo' && (
-        <div className="fixed bottom-16 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-2 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-xl text-[11px] text-[#92600a] font-semibold shadow-xs max-w-[92vw] text-center">
-          Demo mode — connect Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) to load live community data.
-        </div>
-      )}
-      {dataStatus === 'error' && (
-        <div className="fixed bottom-16 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-2 bg-[#DC2626]/10 border border-[#DC2626]/30 rounded-xl text-[11px] text-[#DC2626] font-semibold shadow-xs max-w-[92vw] text-center">
-          {dataError || 'Failed to load data.'}{' '}
-          <button onClick={() => void reloadAll()} className="underline cursor-pointer">
-            Retry
-          </button>
-        </div>
-      )}
     </div>
   );
 };

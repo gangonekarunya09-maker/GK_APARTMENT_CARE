@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
           <div className="space-y-3 md:col-span-1">
             <Logo size="md" />
             <p className="text-xs text-[#667085] leading-relaxed">
-              Hyper-local community services platform for Hyderabad gated societies. Pre-cleared gate passes and exclusive Sunday bulk pricing.
+              Hyper-local doorstep home and auto services for Hyderabad apartments. Verified professionals and transparent pricing.
             </p>
             <div className="text-[11px] text-[#2E8B57] font-semibold flex items-center gap-1.5 pt-1">
               <ShieldCheck className="w-3.5 h-3.5" />

@@ -15,12 +15,12 @@ export const MobileStickyCTA: React.FC = () => {
     <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#E5E7EB] z-30 lg:hidden shadow-sm">
       <div className="max-w-md mx-auto flex items-center justify-between gap-3">
         <div className="leading-tight">
-          <div className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">Sunday Bulk Special</div>
+          <div className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">Doorstep Care</div>
           <div className="text-xs font-bold text-[#142326] truncate max-w-[150px] sm:max-w-[200px]">
             {featured.name}
           </div>
           <div className="text-xs text-[#2596be] font-extrabold font-mono tabular-nums">
-            From ₹{featured.sundayBulkPrice}
+            ₹{featured.communityPrice}
           </div>
         </div>
 
