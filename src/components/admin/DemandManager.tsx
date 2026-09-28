@@ -50,46 +50,54 @@ export const DemandManager: React.FC = () => {
       </div>
 
       {/* Select Service Dropdown / Selector */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {services.map(srv => {
-          const isSelected = srv.id === activeService?.id;
-          const pct = Math.min(100, Math.round((srv.currentDemand / srv.minimumDemand) * 100));
-          const isReady = srv.currentDemand >= srv.minimumDemand;
+      {services.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-2xl border border-[#E5E7EB] text-xs text-[#667085] space-y-2">
+          <TrendingUp className="w-8 h-8 text-[#667085]/40 mx-auto" />
+          <p className="font-bold text-[#142326]">No Services Available</p>
+          <p>Create services in the Services section to start monitoring resident demand pools.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {services.map(srv => {
+            const isSelected = srv.id === activeService?.id;
+            const pct = Math.min(100, Math.round((srv.currentDemand / srv.minimumDemand) * 100));
+            const isReady = srv.currentDemand >= srv.minimumDemand;
 
-          return (
-            <button
-              key={srv.id}
-              onClick={() => setSelectedServiceId(srv.id)}
-              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                isSelected
-                  ? 'border-[#2596be] bg-[#2596be]/5 shadow-xs'
-                  : 'border-[#E5E7EB] bg-white hover:border-[#2596be]/30'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-[#142326] truncate">{srv.name}</span>
-                <span className="text-[10px] font-mono font-bold text-[#2596be] tabular-nums">
-                  {srv.currentDemand}/{srv.minimumDemand}
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden mb-1">
-                <div
-                  className={`h-full rounded-full ${isReady ? 'bg-[#2E8B57]' : 'bg-[#2596be]'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="text-[10px] text-[#667085] flex justify-between">
-                <span>{pct}% pledged</span>
-                {isReady ? (
-                  <span className="text-[#2E8B57] font-bold">Target Reached</span>
-                ) : (
-                  <span>{srv.minimumDemand - srv.currentDemand} more</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={srv.id}
+                onClick={() => setSelectedServiceId(srv.id)}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-[#2596be] bg-[#2596be]/5 shadow-xs'
+                    : 'border-[#E5E7EB] bg-white hover:border-[#2596be]/30'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-[#142326] truncate">{srv.name}</span>
+                  <span className="text-[10px] font-mono font-bold text-[#2596be] tabular-nums">
+                    {srv.currentDemand}/{srv.minimumDemand}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden mb-1">
+                  <div
+                    className={`h-full rounded-full ${isReady ? 'bg-[#2E8B57]' : 'bg-[#2596be]'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-[#667085] flex justify-between">
+                  <span>{pct}% pledged</span>
+                  {isReady ? (
+                    <span className="text-[#2E8B57] font-bold">Target Reached</span>
+                  ) : (
+                    <span>{srv.minimumDemand - srv.currentDemand} more</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Detailed Demand Card for Selected Service */}
       {activeService && (

@@ -10,6 +10,7 @@ import { ProvidersManager } from './ProvidersManager';
 import { CommissionsManager } from './CommissionsManager';
 import { ResidentRequestsManager } from './ResidentRequestsManager';
 import { BookingsManager } from './BookingsManager';
+import { ApplicationsManager } from './ApplicationsManager';
 import { DemandManager } from './DemandManager';
 import { WhatsAppCampaigns } from './WhatsAppCampaigns';
 import { AdminAnalytics } from './AdminAnalytics';
@@ -39,6 +40,9 @@ export const AdminDashboard: React.FC = () => {
         return <ResidentRequestsManager />;
       case 'bookings':
         return <BookingsManager />;
+      case 'applications':
+      case 'partnerships':
+        return <ApplicationsManager />;
       case 'demand':
         return <DemandManager />;
       case 'whatsapp':

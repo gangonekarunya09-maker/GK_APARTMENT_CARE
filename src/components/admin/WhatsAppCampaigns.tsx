@@ -51,6 +51,24 @@ ${serviceLink}`;
     window.open(waUrl, '_blank');
   };
 
+  if (apartments.length === 0 || services.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-extrabold text-[#142326]">WhatsApp Community Campaigns</h2>
+          <p className="text-xs text-[#667085] mt-0.5">
+            Generate high-conversion WhatsApp announcements tailored to each gated community group
+          </p>
+        </div>
+        <div className="p-12 text-center bg-white rounded-2xl border border-[#E5E7EB] text-xs text-[#667085] space-y-2">
+          <MessageCircle className="w-8 h-8 text-[#667085]/40 mx-auto" />
+          <p className="font-bold text-[#142326]">No Communities or Services Configured</p>
+          <p>Create at least one community and one service from the sidebar to generate formatted WhatsApp announcements.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}

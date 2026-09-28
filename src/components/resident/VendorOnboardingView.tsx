@@ -16,13 +16,15 @@ export const VendorOnboardingView: React.FC = () => {
   const [serviceAreas, setServiceAreas] = useState('');
   const [experienceYears, setExperienceYears] = useState('5');
   const [pricingNotes, setPricingNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessName || !contactPerson || !phone) return;
+    if (!businessName || !contactPerson || !phone || submitting) return;
 
-    submitVendorApplication({
+    setSubmitting(true);
+    await submitVendorApplication({
       businessName,
       contactPerson,
       phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
@@ -34,7 +36,7 @@ export const VendorOnboardingView: React.FC = () => {
       experienceYears: parseInt(experienceYears) || 3,
       pricingNotes,
     });
-
+    setSubmitting(false);
     setSubmitted(true);
   };
 
@@ -266,9 +268,10 @@ export const VendorOnboardingView: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                disabled={submitting}
+                className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] disabled:opacity-60 text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
               >
-                <span>Submit for Partner Review</span>
+                <span>{submitting ? 'Submitting Application...' : 'Submit for Partner Review'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

@@ -20,9 +20,11 @@ import {
   AlertCircle,
   ExternalLink,
   Wrench,
-  X
+  X,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ProviderDispatchModal, DispatchHousehold } from './ProviderDispatchModal';
 
 interface CampaignDetailProps {
   campaignId: string;
@@ -44,6 +46,8 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
   } = useApp();
 
   const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [confirmingAllRequests, setConfirmingAllRequests] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bookingFilter, setBookingFilter] = useState<'all' | BookingStatus>('all');
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -69,6 +73,101 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
     if (bookingFilter !== 'all' && b.status !== bookingFilter) return false;
     return true;
   });
+
+  // Compile all households requiring the job for this apartment service
+  const dispatchHouseholds: DispatchHousehold[] = React.useMemo(() => {
+    const list: DispatchHousehold[] = [];
+
+    // 1. Confirmed bookings first
+    for (const b of campaignBookings) {
+      list.push({
+        id: b.id,
+        flatNumber: b.flatNumber,
+        block: b.block,
+        residentName: b.residentName,
+        phone: b.phone,
+        slot: b.slot,
+        date: b.date,
+        notes: b.notes,
+        price: b.price,
+        sourceType: 'booking',
+      });
+    }
+
+    // 2. Include interested resident requests that aren't converted yet
+    for (const r of requests) {
+      const alreadyInBookings = campaignBookings.some(
+        b =>
+          b.flatNumber.toLowerCase() === r.flatNumber.toLowerCase() &&
+          b.block.toLowerCase() === r.block.toLowerCase()
+      );
+      if (!alreadyInBookings) {
+        list.push({
+          id: r.id,
+          flatNumber: r.flatNumber,
+          block: r.block,
+          residentName: r.residentName,
+          phone: r.phone,
+          slot: r.preferredSlot || '08:00 AM - 10:00 AM',
+          date: r.preferredDate || campaign?.availableDates[0] || 'Upcoming Sunday',
+          notes: r.notes ? `[Interested Request] ${r.notes}` : undefined,
+          price: campaign?.sundayBulkPrice || campaign?.communityPrice || 499,
+          sourceType: 'request',
+        });
+      }
+    }
+
+    return list;
+  }, [campaignBookings, requests, campaign]);
+
+  // Bulk convert all requests to confirmed bookings and open dispatch
+  const handleConfirmAllRequestsAndDispatch = async () => {
+    if (!campaign || !apartment || !service) return;
+    setConfirmingAllRequests(true);
+    try {
+      const unbooked = requests.filter(
+        r =>
+          !campaignBookings.some(
+            b =>
+              b.flatNumber.toLowerCase() === r.flatNumber.toLowerCase() &&
+              b.block.toLowerCase() === r.block.toLowerCase()
+          )
+      );
+
+      for (const req of unbooked) {
+        await createBooking({
+          serviceId: campaign.serviceId,
+          apartmentId: campaign.apartmentId,
+          residentName: req.residentName,
+          phone: req.phone,
+          email: req.email,
+          block: req.block,
+          flatNumber: req.flatNumber,
+          date: req.preferredDate || campaign.availableDates[0] || 'Upcoming Sunday',
+          slot: req.preferredSlot || campaign.availableSlots[0] || '08:00 AM - 10:00 AM',
+          price: campaign.sundayBulkPrice || campaign.communityPrice,
+          bookingType: 'sunday_bulk',
+          campaignId: campaign.id,
+          notes: req.notes ? `[Confirmed from poll] ${req.notes}` : `Confirmed from resident demand poll.`,
+        });
+      }
+
+      setConvertSuccess(
+        unbooked.length > 0
+          ? `Confirmed all ${unbooked.length} resident requests as active bookings!`
+          : `All requests are already confirmed.`
+      );
+      setTimeout(() => setConvertSuccess(null), 4000);
+
+      if (provider) {
+        setDispatchModalOpen(true);
+      } else {
+        setProviderModalOpen(true);
+      }
+    } finally {
+      setConfirmingAllRequests(false);
+    }
+  };
 
   if (!campaign || !apartment || !service) {
     return (
@@ -318,25 +417,22 @@ ${publicUrl}`;
             </div>
 
             {/* Actionable Phone & WhatsApp Buttons (Sections 11 & 18) */}
-            <div className="flex items-center gap-2 pt-2 sm:pt-0">
+            <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
+              <button
+                type="button"
+                onClick={() => setDispatchModalOpen(true)}
+                className="px-4 py-2 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Send WhatsApp Dispatch ({dispatchHouseholds.length} Flats)</span>
+              </button>
+
               <a
                 href={`tel:${provider.phone}`}
                 className="px-3.5 py-2 bg-white border border-[#E5E7EB] hover:border-[#2596be] text-[#142326] text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
               >
                 <Phone className="w-3.5 h-3.5 text-[#2596be]" />
                 <span>Call Provider</span>
-              </a>
-
-              <a
-                href={`https://wa.me/${provider.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
-                  `Hi ${provider.contactPerson}! Connecting from GK Apartment Care regarding ${service.name} batch for ${apartment.name}. We have ${campaign.currentDemand} confirmed resident requests.`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3.5 py-2 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>WhatsApp Provider</span>
               </a>
             </div>
           </div>
@@ -422,24 +518,37 @@ ${publicUrl}`;
             </p>
           </div>
 
-          {/* Status filter tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(['all', 'received', 'vendor_assigned', 'in_progress', 'completed'] as const).map(st => {
-              const count = st === 'all' ? campaignBookings.length : campaignBookings.filter(b => b.status === st).length;
-              return (
-                <button
-                  key={st}
-                  onClick={() => setBookingFilter(st)}
-                  className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors cursor-pointer ${
-                    bookingFilter === st
-                      ? 'bg-[#2596be] text-white'
-                      : 'bg-[#F8F9FA] text-[#667085] hover:bg-[#E5E7EB] hover:text-[#142326]'
-                  }`}
-                >
-                  {st === 'all' ? 'All' : st.replace('_', ' ')} ({count})
-                </button>
-              );
-            })}
+          {/* Status filter tabs & Dispatch action */}
+          <div className="flex flex-wrap items-center gap-2">
+            {provider && campaignBookings.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDispatchModalOpen(true)}
+                className="px-3 py-1.5 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Dispatch Schedule ({dispatchHouseholds.length} Flats)</span>
+              </button>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'received', 'vendor_assigned', 'in_progress', 'completed'] as const).map(st => {
+                const count = st === 'all' ? campaignBookings.length : campaignBookings.filter(b => b.status === st).length;
+                return (
+                  <button
+                    key={st}
+                    onClick={() => setBookingFilter(st)}
+                    className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors cursor-pointer ${
+                      bookingFilter === st
+                        ? 'bg-[#2596be] text-white'
+                        : 'bg-[#F8F9FA] text-[#667085] hover:bg-[#E5E7EB] hover:text-[#142326]'
+                    }`}
+                  >
+                    {st === 'all' ? 'All' : st.replace('_', ' ')} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -580,7 +689,7 @@ ${publicUrl}`;
 
       {/* Resident Requests (Private to Admin) (Sections 7, 9, 26) */}
       <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-bold text-[#142326]">
               Resident Demand Requests ({requests.length})
@@ -589,6 +698,21 @@ ${publicUrl}`;
               Residents who expressed interest in this campaign. Convert interested flats to confirmed bookings with 1-click.
             </p>
           </div>
+
+          {requests.length > 0 && (
+            <button
+              onClick={handleConfirmAllRequestsAndDispatch}
+              disabled={confirmingAllRequests}
+              className="px-3.5 py-2 bg-[#2596be] hover:bg-[#1e7ca0] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto active:scale-[0.98]"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>
+                {confirmingAllRequests
+                  ? 'Confirming All Requests…'
+                  : 'Confirm All Requests & Send Dispatch'}
+              </span>
+            </button>
+          )}
         </div>
 
         {requests.length === 0 ? (
@@ -737,10 +861,11 @@ ${publicUrl}`;
                       onClick={() => {
                         assignProviderToCampaign(campaign.id, p.id);
                         setProviderModalOpen(false);
+                        setDispatchModalOpen(true);
                       }}
                       className="px-3 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer"
                     >
-                      Assign
+                      Assign &amp; Dispatch
                     </button>
                   </div>
                 ))}
@@ -749,6 +874,27 @@ ${publicUrl}`;
           </div>
         )}
       </AnimatePresence>
+
+      {/* WhatsApp Service Provider Dispatch Work Order Modal */}
+      {provider && (
+        <ProviderDispatchModal
+          isOpen={dispatchModalOpen}
+          onClose={() => setDispatchModalOpen(false)}
+          apartment={apartment}
+          service={service}
+          provider={provider}
+          households={dispatchHouseholds}
+          scheduledDate={campaign.availableDates[0] || 'Upcoming Sunday'}
+          onConfirmStatusUpdate={async () => {
+            await updateCampaignStatus(campaign.id, 'provider_confirmed');
+            for (const b of campaignBookings) {
+              if (b.status === 'received') {
+                await updateBookingStatus(b.id, 'vendor_assigned', provider.id);
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

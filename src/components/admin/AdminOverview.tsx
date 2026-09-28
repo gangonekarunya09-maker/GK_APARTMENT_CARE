@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Clock,
   Wallet,
-  Percent
+  Percent,
+  Handshake
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -24,6 +25,8 @@ export const AdminOverview: React.FC = () => {
     campaigns,
     residentRequests,
     bookings,
+    rwaApplications,
+    vendorApplications,
     defaultCommissionRate,
     setAdminSection,
     setActiveCampaignId,
@@ -31,6 +34,11 @@ export const AdminOverview: React.FC = () => {
   } = useApp();
 
   const totalFlats = apartments.reduce((acc, curr) => acc + curr.totalUnits, 0);
+
+  // Applications
+  const pendingRwa = rwaApplications.filter(a => a.status === 'pending').length;
+  const pendingVnd = vendorApplications.filter(v => v.status === 'pending').length;
+  const totalPendingApplications = pendingRwa + pendingVnd;
 
   // Commission calculations
   const totalCommissionEarned = bookings.reduce((sum, b) => {
@@ -62,7 +70,19 @@ export const AdminOverview: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setAdminSection('applications')}
+            className="px-3.5 py-2 bg-white hover:bg-[#F8F9FA] text-[#142326] border border-[#E5E7EB] text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Handshake className="w-3.5 h-3.5 text-[#2596be]" />
+            <span>Partnership Requests</span>
+            {totalPendingApplications > 0 && (
+              <span className="px-1.5 py-0.5 bg-[#2596be] text-white text-[10px] font-bold rounded-full">
+                {totalPendingApplications}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setAdminSection('commissions')}
             className="px-3.5 py-2 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
@@ -145,7 +165,20 @@ export const AdminOverview: React.FC = () => {
           <span>Pending Operator Actions</span>
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          <div
+            onClick={() => setAdminSection('applications')}
+            className="p-3 bg-[#2596be]/5 hover:bg-[#2596be]/10 rounded-xl border border-[#2596be]/20 cursor-pointer transition-colors"
+          >
+            <span className="text-[#2596be] block font-bold">Partnership Leads:</span>
+            <strong className="text-sm font-bold text-[#142326]">
+              {totalPendingApplications} pending
+            </strong>
+            <span className="text-[11px] text-[#2596be] block mt-0.5 font-semibold">
+              {pendingRwa} RWA · {pendingVnd} Vendor →
+            </span>
+          </div>
+
           <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB]">
             <span className="text-[#667085] block">Target Reached:</span>
             <strong className="text-sm font-bold text-[#2E8B57]">

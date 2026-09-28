@@ -15,12 +15,26 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { ProviderDispatchModal, DispatchHousehold } from './ProviderDispatchModal';
 
 export const BookingsManager: React.FC = () => {
-  const { bookings, apartments, providers, updateBookingStatus, defaultCommissionRate, setAdminSection } = useApp();
+  const {
+    bookings,
+    apartments,
+    providers,
+    services,
+    updateBookingStatus,
+    defaultCommissionRate,
+    setAdminSection,
+  } = useApp();
   const [selectedApartmentId, setSelectedApartmentId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dispatchContext, setDispatchContext] = useState<{
+    apartmentId: string;
+    serviceId?: string;
+    providerId: string;
+  } | null>(null);
 
   const filtered = bookings.filter(b => {
     if (selectedApartmentId !== 'all' && b.apartmentId !== selectedApartmentId) return false;
@@ -47,8 +61,28 @@ export const BookingsManager: React.FC = () => {
             Advance service stages, assign verified vendors, and coordinate gate entry
           </p>
         </div>
-        <div className="text-xs font-semibold text-[#667085]">
-          Showing {filtered.length} of {bookings.length} total orders
+        <div className="flex flex-wrap items-center gap-3">
+          {providers.length > 0 && apartments.length > 0 && (
+            <button
+              onClick={() => {
+                const aptId = selectedApartmentId !== 'all' ? selectedApartmentId : apartments[0]?.id;
+                const aptBookings = bookings.filter(b => b.apartmentId === aptId);
+                const assignedProvId = aptBookings.find(b => b.providerId)?.providerId || providers[0]?.id;
+                setDispatchContext({
+                  apartmentId: aptId,
+                  serviceId: aptBookings[0]?.serviceId || services[0]?.id,
+                  providerId: assignedProvId,
+                });
+              }}
+              className="px-3.5 py-2 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Dispatch Society Work Order (WhatsApp)</span>
+            </button>
+          )}
+          <div className="text-xs font-semibold text-[#667085]">
+            Showing {filtered.length} of {bookings.length} total orders
+          </div>
         </div>
       </div>
 
@@ -230,11 +264,76 @@ export const BookingsManager: React.FC = () => {
                 >
                   <MessageSquare className="w-4 h-4" />
                 </a>
+
+                {/* Quick WhatsApp dispatch to assigned provider */}
+                {b.providerId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDispatchContext({
+                        apartmentId: b.apartmentId,
+                        serviceId: b.serviceId,
+                        providerId: b.providerId!,
+                      });
+                    }}
+                    className="p-2 bg-[#2E8B57]/10 text-[#2E8B57] hover:bg-[#2E8B57] hover:text-white rounded-lg border border-[#2E8B57]/30 flex items-center justify-center cursor-pointer transition-colors"
+                    title="Send WhatsApp Dispatch to Provider (With Location & Flat No)"
+                  >
+                    <MessageSquare className="w-4 h-4 fill-current" />
+                  </button>
+                )}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Provider Dispatch Work Order Modal */}
+      {(() => {
+        if (!dispatchContext) return null;
+        const dispatchApt = apartments.find(a => a.id === dispatchContext.apartmentId);
+        const dispatchProv = providers.find(p => p.id === dispatchContext.providerId);
+        const dispatchSvc = services.find(s => s.id === dispatchContext.serviceId) || services[0];
+        if (!dispatchApt || !dispatchProv || !dispatchSvc) return null;
+
+        const targetBookings = bookings.filter(
+          b =>
+            b.apartmentId === dispatchContext.apartmentId &&
+            (!dispatchContext.serviceId || b.serviceId === dispatchContext.serviceId)
+        );
+
+        const dispatchHouseholds: DispatchHousehold[] = targetBookings.map(b => ({
+          id: b.id,
+          flatNumber: b.flatNumber,
+          block: b.block,
+          residentName: b.residentName,
+          phone: b.phone,
+          slot: b.slot,
+          date: b.date,
+          notes: b.notes,
+          price: b.price,
+          sourceType: 'booking',
+        }));
+
+        return (
+          <ProviderDispatchModal
+            isOpen={Boolean(dispatchContext)}
+            onClose={() => setDispatchContext(null)}
+            apartment={dispatchApt}
+            service={dispatchSvc}
+            provider={dispatchProv}
+            households={dispatchHouseholds}
+            scheduledDate={targetBookings[0]?.date || 'Upcoming Sunday'}
+            onConfirmStatusUpdate={async () => {
+              for (const tb of targetBookings) {
+                if (tb.status === 'received') {
+                  await updateBookingStatus(tb.id, 'vendor_assigned', dispatchProv.id);
+                }
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

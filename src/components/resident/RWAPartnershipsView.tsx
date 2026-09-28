@@ -13,13 +13,15 @@ export const RWAPartnershipsView: React.FC = () => {
   const [totalUnits, setTotalUnits] = useState('');
   const [area, setArea] = useState('');
   const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!societyName || !rwaContact || !phone) return;
+    if (!societyName || !rwaContact || !phone || submitting) return;
 
-    submitRWAApplication({
+    setSubmitting(true);
+    await submitRWAApplication({
       societyName,
       rwaContact,
       phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
@@ -28,7 +30,7 @@ export const RWAPartnershipsView: React.FC = () => {
       area: area || 'Hyderabad',
       message,
     });
-
+    setSubmitting(false);
     setSubmitted(true);
   };
 
@@ -227,9 +229,10 @@ export const RWAPartnershipsView: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                disabled={submitting}
+                className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] disabled:opacity-60 text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
               >
-                <span>Submit RWA Partnership Application</span>
+                <span>{submitting ? 'Submitting Application...' : 'Submit RWA Partnership Application'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

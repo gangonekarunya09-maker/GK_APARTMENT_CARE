@@ -17,7 +17,8 @@ import {
   RotateCcw,
   X,
   Wallet,
-  IndianRupee
+  IndianRupee,
+  Handshake
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 
@@ -37,9 +38,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onCloseMobile }) => 
     providers,
     residentRequests,
     bookings,
+    rwaApplications,
+    vendorApplications,
     logoutAdmin,
     resetToDemoData,
   } = useApp();
+
+  const totalApplicationsCount = rwaApplications.length + vendorApplications.length;
+  const pendingApplicationsCount =
+    rwaApplications.filter(a => a.status === 'pending').length +
+    vendorApplications.filter(v => v.status === 'pending').length;
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,6 +55,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onCloseMobile }) => 
     { id: 'services', label: 'Services', icon: Sparkles, count: services.length },
     { id: 'categories', label: 'Service Categories', icon: Layers, count: categories.length },
     { id: 'providers', label: 'Service Providers', icon: Users, count: providers.length },
+    {
+      id: 'applications',
+      label: 'Partnership Requests',
+      icon: Handshake,
+      count: totalApplicationsCount,
+      alert: pendingApplicationsCount > 0,
+    },
     { id: 'commissions', label: 'Commissions & Payouts', icon: Wallet },
     { id: 'campaigns', label: 'Community Campaigns', icon: Megaphone, count: campaigns.length },
     { id: 'requests', label: 'Customer Requests', icon: Inbox, count: residentRequests.length, alert: residentRequests.length > 0 },
@@ -132,14 +147,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onCloseMobile }) => 
 
         <button
           onClick={() => {
-            if (confirm('Reset all demo data back to default initial state?')) {
+            if (confirm('Clear all stored data and reset to a completely clean empty state?')) {
               resetToDemoData();
             }
           }}
           className="w-full py-1.5 text-[11px] text-[#667085] hover:text-[#DC2626] flex items-center justify-center gap-1 cursor-pointer transition-colors"
         >
           <RotateCcw className="w-3 h-3" />
-          <span>Reset Demo Data</span>
+          <span>Clear All Data (Clean Slate)</span>
         </button>
       </div>
     </aside>

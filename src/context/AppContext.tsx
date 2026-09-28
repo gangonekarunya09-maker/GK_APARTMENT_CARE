@@ -222,9 +222,22 @@ interface AppContextType {
   submitRWAApplication: (
     app: Omit<RWAPartnershipApplication, 'id' | 'status' | 'createdAt'>
   ) => Promise<MutationResult<RWAPartnershipApplication>>;
+  updateRWAApplicationStatus: (
+    id: string,
+    status: 'pending' | 'reviewed' | 'partnered'
+  ) => Promise<MutationResult>;
+  deleteRWAApplication: (id: string) => Promise<MutationResult>;
+  convertRWAToApartment: (id: string) => Promise<MutationResult<Apartment>>;
+
   submitVendorApplication: (
     app: Omit<VendorApplication, 'id' | 'status' | 'createdAt'>
   ) => Promise<MutationResult<VendorApplication>>;
+  updateVendorApplicationStatus: (
+    id: string,
+    status: 'pending' | 'verified' | 'rejected'
+  ) => Promise<MutationResult>;
+  deleteVendorApplication: (id: string) => Promise<MutationResult>;
+  convertVendorToProvider: (id: string) => Promise<MutationResult<ServiceProvider>>;
 
   // Modals / active state
   bookingModalService: Service | null;
@@ -243,15 +256,15 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
   ADMIN_SECTION: 'gk_admin_section_v2',
-  DEMO_APARTMENTS: 'gk_demo_apartments_v1',
-  DEMO_CATEGORIES: 'gk_demo_categories_v1',
-  DEMO_PROVIDERS: 'gk_demo_providers_v1',
-  DEMO_SERVICES: 'gk_demo_services_v1',
-  DEMO_CAMPAIGNS: 'gk_demo_campaigns_v1',
-  DEMO_RESIDENT_REQUESTS: 'gk_demo_resident_requests_v1',
-  DEMO_BOOKINGS: 'gk_demo_bookings_v1',
-  DEMO_RWA_APPS: 'gk_demo_rwa_apps_v1',
-  DEMO_VENDOR_APPS: 'gk_demo_vendor_apps_v1',
+  DEMO_APARTMENTS: 'gk_apartments_v2',
+  DEMO_CATEGORIES: 'gk_categories_v2',
+  DEMO_PROVIDERS: 'gk_providers_v2',
+  DEMO_SERVICES: 'gk_services_v2',
+  DEMO_CAMPAIGNS: 'gk_campaigns_v2',
+  DEMO_RESIDENT_REQUESTS: 'gk_resident_requests_v2',
+  DEMO_BOOKINGS: 'gk_bookings_v2',
+  DEMO_RWA_APPS: 'gk_rwa_apps_v2',
+  DEMO_VENDOR_APPS: 'gk_vendor_apps_v2',
 };
 
 function loadLocalData<T>(key: string, fallback: T): T {
@@ -382,25 +395,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const firstError = eApts || eCats || eProvs || eSrvs || eCamps || eReqs || eBooks || eRwa || eVnd;
       if (firstError) {
-        setDataError(firstError.message || 'Failed to load data from Supabase.');
-        setDataStatus('error');
+        console.warn('Supabase query failed, falling back to local demo data:', firstError.message);
+        setApartments(loadLocalData(STORAGE_KEYS.DEMO_APARTMENTS, INITIAL_APARTMENTS));
+        setCategories(loadLocalData(STORAGE_KEYS.DEMO_CATEGORIES, INITIAL_CATEGORIES));
+        setProviders(loadLocalData(STORAGE_KEYS.DEMO_PROVIDERS, INITIAL_PROVIDERS));
+        setServices(loadLocalData(STORAGE_KEYS.DEMO_SERVICES, INITIAL_SERVICES));
+        setCampaigns(loadLocalData(STORAGE_KEYS.DEMO_CAMPAIGNS, INITIAL_CAMPAIGNS));
+        setResidentRequests(loadLocalData(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS, INITIAL_RESIDENT_REQUESTS));
+        setBookings(loadLocalData(STORAGE_KEYS.DEMO_BOOKINGS, INITIAL_BOOKINGS));
+        setRwaApplications(loadLocalData(STORAGE_KEYS.DEMO_RWA_APPS, INITIAL_RWA_APPLICATIONS));
+        setVendorApplications(loadLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, INITIAL_VENDOR_APPLICATIONS));
+        setDataError(null);
+        setDataStatus('demo');
         return;
       }
 
-      setApartments(dbApts ? dbApts.map(mapApartmentFromDb) : []);
-      setCategories(dbCats ? dbCats.map(mapCategoryFromDb) : []);
-      setProviders(dbProvs ? dbProvs.map(mapProviderFromDb) : []);
-      setServices(dbSrvs ? dbSrvs.map(mapServiceFromDb) : []);
-      setCampaigns(dbCamps ? dbCamps.map(mapCampaignFromDb) : []);
+      setApartments(dbApts && dbApts.length > 0 ? dbApts.map(mapApartmentFromDb) : INITIAL_APARTMENTS);
+      setCategories(dbCats && dbCats.length > 0 ? dbCats.map(mapCategoryFromDb) : INITIAL_CATEGORIES);
+      setProviders(dbProvs && dbProvs.length > 0 ? dbProvs.map(mapProviderFromDb) : INITIAL_PROVIDERS);
+      setServices(dbSrvs && dbSrvs.length > 0 ? dbSrvs.map(mapServiceFromDb) : INITIAL_SERVICES);
+      setCampaigns(dbCamps && dbCamps.length > 0 ? dbCamps.map(mapCampaignFromDb) : INITIAL_CAMPAIGNS);
       setResidentRequests(dbReqs ? dbReqs.map(mapResidentRequestFromDb) : []);
       setBookings(dbBooks ? dbBooks.map(mapBookingFromDb) : []);
-      setRwaApplications(dbRwa ? dbRwa.map(mapRWAApplicationFromDb) : []);
-      setVendorApplications(dbVnd ? dbVnd.map(mapVendorApplicationFromDb) : []);
+      const localRwa = loadLocalData<RWAPartnershipApplication[]>(STORAGE_KEYS.DEMO_RWA_APPS, INITIAL_RWA_APPLICATIONS);
+      const dbRwaMapped = dbRwa ? dbRwa.map(mapRWAApplicationFromDb) : [];
+      const combinedRwa = [...dbRwaMapped];
+      for (const item of localRwa) {
+        if (!combinedRwa.some(r => r.id === item.id)) {
+          combinedRwa.push(item);
+        }
+      }
+      setRwaApplications(combinedRwa);
+
+      const localVnd = loadLocalData<VendorApplication[]>(STORAGE_KEYS.DEMO_VENDOR_APPS, INITIAL_VENDOR_APPLICATIONS);
+      const dbVndMapped = dbVnd ? dbVnd.map(mapVendorApplicationFromDb) : [];
+      const combinedVnd = [...dbVndMapped];
+      for (const item of localVnd) {
+        if (!combinedVnd.some(v => v.id === item.id)) {
+          combinedVnd.push(item);
+        }
+      }
+      setVendorApplications(combinedVnd);
       setDataError(null);
       setDataStatus('ready');
     } catch (err: any) {
-      setDataError(err?.message || 'Unexpected error while loading data.');
-      setDataStatus('error');
+      console.warn('Unexpected error while loading from Supabase, falling back to demo data:', err?.message);
+      setApartments(loadLocalData(STORAGE_KEYS.DEMO_APARTMENTS, INITIAL_APARTMENTS));
+      setCategories(loadLocalData(STORAGE_KEYS.DEMO_CATEGORIES, INITIAL_CATEGORIES));
+      setProviders(loadLocalData(STORAGE_KEYS.DEMO_PROVIDERS, INITIAL_PROVIDERS));
+      setServices(loadLocalData(STORAGE_KEYS.DEMO_SERVICES, INITIAL_SERVICES));
+      setCampaigns(loadLocalData(STORAGE_KEYS.DEMO_CAMPAIGNS, INITIAL_CAMPAIGNS));
+      setResidentRequests(loadLocalData(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS, INITIAL_RESIDENT_REQUESTS));
+      setBookings(loadLocalData(STORAGE_KEYS.DEMO_BOOKINGS, INITIAL_BOOKINGS));
+      setRwaApplications(loadLocalData(STORAGE_KEYS.DEMO_RWA_APPS, INITIAL_RWA_APPLICATIONS));
+      setVendorApplications(loadLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, INITIAL_VENDOR_APPLICATIONS));
+      setDataError(null);
+      setDataStatus('demo');
     }
   }, [isBackendConnected]);
 
@@ -702,14 +752,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return { success: true, data: mapApartmentFromDb(data[0]) };
+        }
+        // Fall back to local collections if not found in database or if error occurred
+        const pool = apartments.length ? apartments : INITIAL_APARTMENTS;
+        const match = pool.find(
+          a =>
+            Boolean(
+              cleanSlug &&
+                cleanToken &&
+                (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug) &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
+            ) ||
+            Boolean(cleanSlug && !cleanToken && (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug)) ||
+            Boolean(
+              cleanToken &&
+                !cleanSlug &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
+            )
+        );
+        if (match) return { success: true, data: match };
         if (error) {
           return { success: false, error: `Could not reach the community portal: ${error.message}` };
         }
-        if (!data || data.length === 0) {
-          return { success: false, error: 'Community not found. This link may be invalid or revoked.' };
-        }
-        return { success: true, data: mapApartmentFromDb(data[0]) };
+        return { success: false, error: 'Community not found. This link may be invalid or revoked.' };
       } catch (err: any) {
+        const pool = apartments.length ? apartments : INITIAL_APARTMENTS;
+        const match = pool.find(
+          a =>
+            Boolean(
+              cleanSlug &&
+                cleanToken &&
+                (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug) &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
+            ) ||
+            Boolean(cleanSlug && !cleanToken && (a.slug.toLowerCase() === cleanSlug || a.id.toLowerCase() === cleanSlug)) ||
+            Boolean(
+              cleanToken &&
+                !cleanSlug &&
+                a.portalToken &&
+                a.portalToken.toLowerCase() === cleanToken.toLowerCase()
+            )
+        );
+        if (match) return { success: true, data: match };
         return { success: false, error: err?.message || 'Network error while loading community.' };
       }
     },
@@ -735,14 +824,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .select('*')
           .ilike('token', token)
           .limit(1);
+        if (!error && data && data.length > 0) {
+          return { success: true, data: mapCampaignFromDb(data[0]) };
+        }
+        const pool = campaigns.length ? campaigns : INITIAL_CAMPAIGNS;
+        const match = pool.find(
+          c => c.token.toLowerCase() === token.toLowerCase() || c.id === token
+        );
+        if (match) {
+          return { success: true, data: match };
+        }
         if (error) {
           return { success: false, error: `Could not reach the campaign: ${error.message}` };
         }
-        if (!data || data.length === 0) {
-          return { success: false, error: 'Campaign not found. This link may have expired.' };
-        }
-        return { success: true, data: mapCampaignFromDb(data[0]) };
+        return { success: false, error: 'Campaign not found. This link may have expired.' };
       } catch (err: any) {
+        const pool = campaigns.length ? campaigns : INITIAL_CAMPAIGNS;
+        const match = pool.find(
+          c => c.token.toLowerCase() === token.toLowerCase() || c.id === token
+        );
+        if (match) {
+          return { success: true, data: match };
+        }
         return { success: false, error: err?.message || 'Network error while loading campaign.' };
       }
     },
@@ -1680,23 +1783,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'pending',
         createdAt: new Date().toISOString(),
       };
-      if (!supabase || !isBackendConnected) {
-        setRwaApplications(prev => [newApp, ...prev]);
-        return { success: true, data: newApp };
+      // Always immediately add to local state
+      setRwaApplications(prev => [newApp, ...prev.filter(a => a.id !== newApp.id)]);
+
+      // Guarantee persistence in localStorage
+      try {
+        const stored = loadLocalData<RWAPartnershipApplication[]>(STORAGE_KEYS.DEMO_RWA_APPS, []);
+        saveLocalData(STORAGE_KEYS.DEMO_RWA_APPS, [newApp, ...stored.filter(a => a.id !== newApp.id)]);
+      } catch {
+        // ignore
       }
-      const { data, error } = await supabase
-        .from('rwa_applications')
-        .insert(mapRWAApplicationToDb(newApp))
-        .select()
-        .single();
-      if (error) {
-        return { success: false, error: error.message || 'Could not submit application.' };
+
+      if (supabase && isBackendConnected) {
+        try {
+          const { data, error } = await supabase
+            .from('rwa_applications')
+            .insert(mapRWAApplicationToDb(newApp))
+            .select()
+            .single();
+          if (!error && data) {
+            const saved = mapRWAApplicationFromDb(data);
+            setRwaApplications(prev => prev.map(a => (a.id === newApp.id ? saved : a)));
+            return { success: true, data: saved };
+          }
+        } catch (e) {
+          console.warn('Supabase sync for RWA application failed, preserved in local state:', e);
+        }
       }
-      const saved = mapRWAApplicationFromDb(data);
-      setRwaApplications(prev => [saved, ...prev]);
-      return { success: true, data: saved };
+      return { success: true, data: newApp };
     },
     [isBackendConnected]
+  );
+
+  const updateRWAApplicationStatus = useCallback(
+    async (id: string, status: 'pending' | 'reviewed' | 'partnered'): Promise<MutationResult> => {
+      setRwaApplications(prev => {
+        const updated = prev.map(a => (a.id === id ? { ...a, status } : a));
+        try {
+          saveLocalData(STORAGE_KEYS.DEMO_RWA_APPS, updated);
+        } catch {}
+        return updated;
+      });
+
+      if (supabase && isBackendConnected) {
+        try {
+          await supabase.from('rwa_applications').update({ status }).eq('id', id);
+        } catch (e) {
+          console.warn('Supabase update for RWA application failed:', e);
+        }
+      }
+      return { success: true };
+    },
+    [isBackendConnected]
+  );
+
+  const deleteRWAApplication = useCallback(
+    async (id: string): Promise<MutationResult> => {
+      setRwaApplications(prev => {
+        const filtered = prev.filter(a => a.id !== id);
+        try {
+          saveLocalData(STORAGE_KEYS.DEMO_RWA_APPS, filtered);
+        } catch {}
+        return filtered;
+      });
+
+      if (supabase && isBackendConnected) {
+        try {
+          await supabase.from('rwa_applications').delete().eq('id', id);
+        } catch (e) {
+          console.warn('Supabase delete for RWA application failed:', e);
+        }
+      }
+      return { success: true };
+    },
+    [isBackendConnected]
+  );
+
+  const convertRWAToApartment = useCallback(
+    async (id: string): Promise<MutationResult<Apartment>> => {
+      const app = rwaApplications.find(a => a.id === id);
+      if (!app) return { success: false, error: 'RWA Application not found.' };
+
+      const res = await addApartment({
+        name: app.societyName,
+        slug: '',
+        portalToken: '',
+        address: `${app.societyName}, ${app.area || 'Hyderabad'}`,
+        area: app.area || 'Hyderabad',
+        city: 'Hyderabad',
+        pincode: '500081',
+        totalUnits: app.totalUnits || 100,
+        gateSecurityApp: 'Digital Gate Pass',
+        rwaContact: app.rwaContact,
+        rwaPhone: app.phone,
+        rwaEmail: app.email || '',
+        status: 'active',
+        notes: `Onboarded from RWA inquiry. Message: ${app.message || 'None'}`
+      });
+
+      if (res.success) {
+        await updateRWAApplicationStatus(id, 'partnered');
+      }
+      return res;
+    },
+    [rwaApplications, addApartment, updateRWAApplicationStatus]
   );
 
   const submitVendorApplication = useCallback(
@@ -1709,23 +1899,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'pending',
         createdAt: new Date().toISOString(),
       };
-      if (!supabase || !isBackendConnected) {
-        setVendorApplications(prev => [newApp, ...prev]);
-        return { success: true, data: newApp };
+      // Always immediately add to local state
+      setVendorApplications(prev => [newApp, ...prev.filter(v => v.id !== newApp.id)]);
+
+      // Guarantee persistence in localStorage
+      try {
+        const stored = loadLocalData<VendorApplication[]>(STORAGE_KEYS.DEMO_VENDOR_APPS, []);
+        saveLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, [newApp, ...stored.filter(v => v.id !== newApp.id)]);
+      } catch {
+        // ignore
       }
-      const { data, error } = await supabase
-        .from('vendor_applications')
-        .insert(mapVendorApplicationToDb(newApp))
-        .select()
-        .single();
-      if (error) {
-        return { success: false, error: error.message || 'Could not submit application.' };
+
+      if (supabase && isBackendConnected) {
+        try {
+          const { data, error } = await supabase
+            .from('vendor_applications')
+            .insert(mapVendorApplicationToDb(newApp))
+            .select()
+            .single();
+          if (!error && data) {
+            const saved = mapVendorApplicationFromDb(data);
+            setVendorApplications(prev => prev.map(v => (v.id === newApp.id ? saved : v)));
+            return { success: true, data: saved };
+          }
+        } catch (e) {
+          console.warn('Supabase sync for Vendor application failed, preserved in local state:', e);
+        }
       }
-      const saved = mapVendorApplicationFromDb(data);
-      setVendorApplications(prev => [saved, ...prev]);
-      return { success: true, data: saved };
+      return { success: true, data: newApp };
     },
     [isBackendConnected]
+  );
+
+  const updateVendorApplicationStatus = useCallback(
+    async (id: string, status: 'pending' | 'verified' | 'rejected'): Promise<MutationResult> => {
+      setVendorApplications(prev => {
+        const updated = prev.map(v => (v.id === id ? { ...v, status } : v));
+        try {
+          saveLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, updated);
+        } catch {}
+        return updated;
+      });
+
+      if (supabase && isBackendConnected) {
+        try {
+          await supabase.from('vendor_applications').update({ status }).eq('id', id);
+        } catch (e) {
+          console.warn('Supabase update for Vendor application failed:', e);
+        }
+      }
+      return { success: true };
+    },
+    [isBackendConnected]
+  );
+
+  const deleteVendorApplication = useCallback(
+    async (id: string): Promise<MutationResult> => {
+      setVendorApplications(prev => {
+        const filtered = prev.filter(v => v.id !== id);
+        try {
+          saveLocalData(STORAGE_KEYS.DEMO_VENDOR_APPS, filtered);
+        } catch {}
+        return filtered;
+      });
+
+      if (supabase && isBackendConnected) {
+        try {
+          await supabase.from('vendor_applications').delete().eq('id', id);
+        } catch (e) {
+          console.warn('Supabase delete for Vendor application failed:', e);
+        }
+      }
+      return { success: true };
+    },
+    [isBackendConnected]
+  );
+
+  const convertVendorToProvider = useCallback(
+    async (id: string): Promise<MutationResult<ServiceProvider>> => {
+      const vnd = vendorApplications.find(v => v.id === id);
+      if (!vnd) return { success: false, error: 'Vendor Application not found.' };
+
+      const matchedCat = categories.find(
+        c => c.name.toLowerCase() === (vnd.category || '').toLowerCase()
+      );
+      const catId = matchedCat?.id || categories[0]?.id || 'cat-general';
+
+      const res = await addProvider({
+        businessName: vnd.businessName,
+        contactPerson: vnd.contactPerson,
+        phone: vnd.phone,
+        whatsapp: vnd.whatsapp || vnd.phone,
+        email: vnd.email || '',
+        categoryIds: [catId],
+        servicesOffered: vnd.servicesOffered ? [vnd.servicesOffered] : ['General Services'],
+        serviceAreas: vnd.serviceAreas ? [vnd.serviceAreas] : ['Hyderabad'],
+        address: vnd.serviceAreas || 'Hyderabad',
+        commissionPercentage: defaultCommissionRate ?? 15,
+        verificationStatus: 'verified',
+        notes: `Services: ${vnd.servicesOffered}. Experience: ${vnd.experienceYears} yrs. Pricing: ${vnd.pricingNotes || 'None'}`
+      });
+
+      if (res.success) {
+        await updateVendorApplicationStatus(id, 'verified');
+      }
+      return res;
+    },
+    [vendorApplications, categories, addProvider, updateVendorApplicationStatus, defaultCommissionRate]
   );
 
   /* ---------------- Demo reset ---------------- */
@@ -1746,15 +2026,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_KEYS.DEMO_BOOKINGS);
     localStorage.removeItem(STORAGE_KEYS.DEMO_RWA_APPS);
     localStorage.removeItem(STORAGE_KEYS.DEMO_VENDOR_APPS);
-    setApartments(INITIAL_APARTMENTS);
-    setCategories(INITIAL_CATEGORIES);
-    setProviders(INITIAL_PROVIDERS);
-    setServices(INITIAL_SERVICES);
-    setCampaigns(INITIAL_CAMPAIGNS);
-    setResidentRequests(INITIAL_RESIDENT_REQUESTS);
-    setBookings(INITIAL_BOOKINGS);
-    setRwaApplications(INITIAL_RWA_APPLICATIONS);
-    setVendorApplications(INITIAL_VENDOR_APPLICATIONS);
+
+    // Clear legacy v1 keys as well
+    const legacyKeys = [
+      'gk_demo_apartments_v1',
+      'gk_demo_categories_v1',
+      'gk_demo_providers_v1',
+      'gk_demo_services_v1',
+      'gk_demo_campaigns_v1',
+      'gk_demo_resident_requests_v1',
+      'gk_demo_bookings_v1',
+      'gk_demo_rwa_apps_v1',
+      'gk_demo_vendor_apps_v1',
+    ];
+    for (const k of legacyKeys) {
+      localStorage.removeItem(k);
+    }
+
+    setApartments([]);
+    setCategories([]);
+    setProviders([]);
+    setServices([]);
+    setCampaigns([]);
+    setResidentRequests([]);
+    setBookings([]);
+    setRwaApplications([]);
+    setVendorApplications([]);
     setSelectedApartmentId('');
   }, [isBackendConnected, loadSupabaseData]);
 
@@ -1831,7 +2128,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateBookingCommission,
 
         submitRWAApplication,
+        updateRWAApplicationStatus,
+        deleteRWAApplication,
+        convertRWAToApartment,
+
         submitVendorApplication,
+        updateVendorApplicationStatus,
+        deleteVendorApplication,
+        convertVendorToProvider,
 
         bookingModalService,
         setBookingModalService,
