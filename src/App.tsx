@@ -2,8 +2,16 @@ import React, { useMemo } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { resolveRoute, isAdminPath } from './lib/router';
 import { Navbar } from './components/common/Navbar';
+import { PromoBar } from './components/common/PromoBar';
 import { Hero } from './components/resident/Hero';
+import { StepsSection } from './components/resident/StepsSection';
+import { ServicesMarquee } from './components/resident/ServicesMarquee';
 import { ServiceCatalog } from './components/resident/ServiceCatalog';
+import { ComparisonSection } from './components/resident/ComparisonSection';
+import { NetworkSection } from './components/resident/NetworkSection';
+import { AssociationTrustSection } from './components/resident/AssociationTrustSection';
+import { FAQSection } from './components/resident/FAQSection';
+import { ClosingCTA } from './components/resident/ClosingCTA';
 import { TrustSection } from './components/resident/TrustSection';
 import { MyBookingsView } from './components/resident/MyBookingsView';
 import { RWAPartnershipsView } from './components/resident/RWAPartnershipsView';
@@ -417,7 +425,8 @@ const AppRouter: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#142326] flex flex-col antialiased selection:bg-[#2596be]/20 selection:text-[#142326]">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#111111] flex flex-col antialiased selection:bg-[#2596be]/20 selection:text-[#111111]">
+      <PromoBar onExplore={handleScrollToCatalog} />
       <Navbar />
 
       <main className="flex-1">
@@ -427,8 +436,21 @@ const AppRouter: React.FC = () => {
               onExploreClick={handleScrollToCatalog}
               onBookNowClick={handleBookNow}
             />
+            <StepsSection onExplore={handleScrollToCatalog} />
+            <ServicesMarquee />
             <ServiceCatalog />
-            <TrustSection />
+            <ComparisonSection />
+            <NetworkSection onExplore={handleScrollToCatalog} />
+            <AssociationTrustSection />
+            <FAQSection />
+            <ClosingCTA
+              onBookNow={handleBookNow}
+              onExploreServices={handleScrollToCatalog}
+              onPartnerRWA={() => {
+                setResidentTab('rwa');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </>
         )}
 

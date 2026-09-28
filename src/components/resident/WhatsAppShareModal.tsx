@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, MessageCircle, Copy, Check, Share2 } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { X, MessageCircle, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const WhatsAppShareModal: React.FC = () => {
@@ -50,66 +51,62 @@ Doorstep service by verified professionals. Open the link above to schedule your
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-2xl border border-[#E5E7EB] shadow-xl max-w-lg w-full overflow-hidden"
+        className="bg-white rounded-[24px] border border-[#E4E0D8] shadow-2xl max-w-lg w-full overflow-hidden"
       >
-        <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center">
-              <MessageCircle className="w-4 h-4" />
+        <div className="p-5 sm:p-6 border-b border-[#E4E0D8] flex items-center justify-between bg-[#FAF8F5]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center">
+              <MessageCircle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#142326]">
-                Share on Community WhatsApp Group
+              <h3 className="font-display text-lg font-medium text-[#111111]">
+                Share on Community WhatsApp
               </h3>
-              <p className="text-xs text-[#667085]">
-                Share doorstep service details with your neighbors
+              <p className="text-xs text-[#5C5A56]">
+                Share doorstep service details with your tower neighbors
               </p>
             </div>
           </div>
           <button
             onClick={() => setShareModalService(null)}
-            className="p-1.5 rounded-lg text-[#667085] hover:bg-[#F8F9FA] hover:text-[#142326] cursor-pointer"
+            className="w-8 h-8 rounded-full border border-[#E4E0D8] bg-white flex items-center justify-center text-[#5C5A56] hover:text-[#111111] hover:border-[#111111] cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <div className="space-y-1.5">
+        <div className="p-6 space-y-5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-[#142326]">Preview WhatsApp Message</span>
-              <span className="text-[11px] text-[#2596be] font-medium">Ready to share</span>
+              <span className="font-semibold uppercase tracking-wider text-[#111111]">
+                Preview Message
+              </span>
+              <span className="text-[11px] text-[#2596be] font-medium">Ready to post</span>
             </div>
-            <div className="p-3.5 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] text-xs font-mono text-[#142326] whitespace-pre-line leading-relaxed max-h-56 overflow-y-auto">
+            <div className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#E4E0D8] text-xs font-mono text-[#111111] whitespace-pre-line leading-relaxed max-h-52 overflow-y-auto">
               {messageText}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <button
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <Button
+              variant="secondary"
+              size="md"
               onClick={handleCopy}
-              className="py-3 px-4 bg-white border border-[#E5E7EB] hover:bg-[#F8F9FA] text-[#142326] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              icon={copied ? <Check className="w-4 h-4 text-[#2E8B57]" /> : <Copy className="w-4 h-4" />}
             >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 text-[#2E8B57]" />
-                  <span className="text-[#2E8B57]">Copied to Clipboard!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-[#667085]" />
-                  <span>Copy Message &amp; Link</span>
-                </>
-              )}
-            </button>
+              {copied ? 'Copied Link!' : 'Copy Message'}
+            </Button>
 
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleWhatsAppRedirect}
-              className="py-3 px-4 bg-[#2E8B57] hover:bg-[#257347] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
+              icon={<MessageCircle className="w-4 h-4" />}
+              className="bg-[#2E8B57] hover:bg-[#257347] text-white"
             >
-              <MessageCircle className="w-4 h-4" />
-              <span>Share to WhatsApp</span>
-            </button>
+              Open WhatsApp
+            </Button>
           </div>
         </div>
       </motion.div>

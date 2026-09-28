@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, CheckCircle2, ArrowRight, Wrench, Briefcase, Phone, MessageSquare } from 'lucide-react';
+import { Section } from '../ui/Section';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { Wrench, ShieldCheck, CheckCircle2, ArrowRight, Phone, MessageSquare, Briefcase, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const VendorOnboardingView: React.FC = () => {
@@ -41,243 +44,242 @@ export const VendorOnboardingView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
-      <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#2596be]/10 text-[#2596be] rounded-full text-xs font-bold">
-          <Wrench className="w-3.5 h-3.5" />
-          <span>Service Provider Network</span>
-        </div>
-        <h2 className="text-3xl font-extrabold text-[#142326]">
-          Become a GK Apartment Care Service Partner
-        </h2>
-        <p className="text-xs sm:text-sm text-[#667085] leading-relaxed">
-          Gain direct, pre-approved access to premium gated communities and high-volume Sunday bulk service batches across Hyderabad.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-        {/* Left Side: Partner Perks */}
-        <div className="md:col-span-2 space-y-4">
-          <div className="p-5 bg-[#F8F9FA] rounded-2xl border border-[#E5E7EB] space-y-3">
-            <h3 className="text-sm font-bold text-[#142326]">Partner Benefits:</h3>
-            <div className="space-y-3 text-xs text-[#667085]">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2E8B57] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-[#142326] block">Guaranteed Bulk Volumes</strong>
-                  Instead of driving across town for 1 car, service 15 to 25 cars or flats in one single gated society visit.
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2E8B57] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-[#142326] block">Pre-Cleared Gate Passes</strong>
-                  Our operations team manages digital gate passes and security pre-approvals for all your technicians.
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2E8B57] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-[#142326] block">Zero Commission Trap</strong>
-                  Transparent community volume contracts with timely direct payouts.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 bg-white rounded-2xl border border-[#E5E7EB] text-xs space-y-2">
-            <div className="font-bold text-[#142326]">Vendor Helpdesk:</div>
-            <div className="flex items-center gap-1.5 text-[#667085]">
-              <Phone className="w-3.5 h-3.5 text-[#2596be]" />
-              <span>+91 98495 11224</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[#667085]">
-              <MessageSquare className="w-3.5 h-3.5 text-[#2E8B57]" />
-              <span>partners@gkapartmentcare.com</span>
-            </div>
-          </div>
+    <Section bg="bg" className="min-h-[80vh]">
+      <div className="space-y-12 sm:space-y-16">
+        {/* Header */}
+        <div className="text-center max-w-3xl mx-auto space-y-4">
+          <Badge variant="neutral" size="md" icon={<Wrench className="w-3.5 h-3.5 text-[#2596be]" />}>
+            Service Provider Network
+          </Badge>
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-medium text-[#111111] leading-[1.02] tracking-tight text-balance">
+            Become a GK Apartment Care service partner.
+          </h1>
+          <p className="text-base sm:text-lg text-[#5C5A56] max-w-2xl mx-auto leading-relaxed">
+            Gain direct, pre-approved access to premium gated communities and high-volume Sunday bulk service batches across Hyderabad.
+          </p>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="md:col-span-3">
-          {submitted ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-8 bg-white rounded-2xl border border-[#E5E7EB] shadow-xs text-center space-y-4"
-            >
-              <div className="w-14 h-14 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] mx-auto flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-[#142326]">
-                Application Submitted for Verification!
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {/* Left Side: Benefits (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="p-8 bg-white rounded-[24px] border border-[#E4E0D8] space-y-6 shadow-2xs">
+              <h3 className="font-display text-xl font-medium text-[#111111]">
+                Service Partner Advantages:
               </h3>
-              <p className="text-xs text-[#667085] max-w-md mx-auto leading-relaxed">
-                Thank you for applying with <strong className="text-[#142326]">{businessName}</strong>. Our vendor relations manager will contact you for background verification and equipment audit.
-              </p>
-              <button
-                onClick={() => {
-                  setSubmitted(false);
-                  setBusinessName('');
-                  setContactPerson('');
-                  setPhone('');
-                }}
-                className="px-5 py-2.5 bg-[#2596be] text-white text-xs font-bold rounded-xl hover:bg-[#1e7ca0] transition-colors cursor-pointer"
+
+              <div className="space-y-5 text-sm text-[#5C5A56]">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="text-[#111111] block font-medium">Guaranteed Batch Volumes</strong>
+                    Instead of crisscrossing town for 1 booking, service 15 to 30 flats or vehicles in a single gated society visit.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="text-[#111111] block font-medium">Pre-Cleared Gate Passes</strong>
+                    Our operations team arranges digital security approvals for all your verified technicians.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="text-[#111111] block font-medium">Zero Commission Traps</strong>
+                    Transparent partnership terms with timely direct bank/UPI disbursements.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vendor Desk */}
+            <div className="p-6 bg-[#F0EDE7] rounded-[24px] border border-[#E4E0D8] space-y-3">
+              <div className="font-display font-medium text-sm text-[#111111]">
+                Vendor Relations Desk:
+              </div>
+              <div className="space-y-1 text-xs sm:text-sm text-[#5C5A56]">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-[#2596be]" />
+                  <span>+91 94943 35848</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-[#2596be]" />
+                  <span>partners@gkapartmentcare.com</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Form (7 cols) */}
+          <div className="lg:col-span-7">
+            {submitted ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-10 bg-white rounded-[24px] border border-[#E4E0D8] text-center space-y-5 shadow-2xs"
               >
-                Submit Another Application
-              </button>
-            </motion.div>
-          ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="p-6 bg-white rounded-2xl border border-[#E5E7EB] shadow-xs space-y-4"
-            >
-              <h3 className="text-base font-bold text-[#142326] border-b border-[#E5E7EB] pb-2">
-                Business &amp; Capability Profile
-              </h3>
+                <div className="w-16 h-16 rounded-full bg-[#2E8B57]/10 text-[#2E8B57] mx-auto flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="font-display text-2xl font-medium text-[#111111]">
+                  Partner Application Submitted!
+                </h3>
+                <p className="text-sm text-[#5C5A56] max-w-md mx-auto leading-relaxed">
+                  Thank you for applying with <strong className="text-[#111111]">{businessName}</strong>. Our vendor coordinator will reach out for capability audit and onboarding verification.
+                </p>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setBusinessName('');
+                    setContactPerson('');
+                    setPhone('');
+                    setServicesOffered('');
+                  }}
+                >
+                  Submit Another Profile
+                </Button>
+              </motion.div>
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                className="p-8 sm:p-10 bg-white rounded-[24px] border border-[#E4E0D8] space-y-6 shadow-2xs"
+              >
+                <div>
+                  <h3 className="font-display text-xl sm:text-2xl font-medium text-[#111111]">
+                    Service Provider Application Form
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#5C5A56] mt-1">
+                    Enter your business and team details to start servicing gated community batches.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    Business / Agency Name <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={businessName}
-                    onChange={e => setBusinessName(e.target.value)}
-                    placeholder="e.g. Apex Auto Detailing"
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    Lead Contact Person <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={contactPerson}
-                    onChange={e => setContactPerson(e.target.value)}
-                    placeholder="e.g. Suresh Kumar"
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Business / Agency Name <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={businessName}
+                      onChange={e => setBusinessName(e.target.value)}
+                      placeholder="e.g. Apex Detailing / CleanPro Services"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    Phone (+91) <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="98490 12345"
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    WhatsApp Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={whatsapp}
-                    onChange={e => setWhatsapp(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="Same as phone or WhatsApp"
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                  />
-                </div>
-              </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Primary Contact Person <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={contactPerson}
+                      onChange={e => setContactPerson(e.target.value)}
+                      placeholder="e.g. Rohan Sharma"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    Primary Service Category
-                  </label>
-                  <select
-                    value={category}
-                    onChange={e => setCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Phone Number <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="e.g. 98490 12345"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Service Category <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <select
+                      value={category}
+                      onChange={e => setCategory(e.target.value)}
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111] cursor-pointer"
+                    >
+                      {categories.map(c => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Years of Experience
+                    </label>
+                    <input
+                      type="number"
+                      value={experienceYears}
+                      onChange={e => setExperienceYears(e.target.value)}
+                      placeholder="e.g. 5"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Services &amp; Equipment Offered
+                    </label>
+                    <input
+                      type="text"
+                      value={servicesOffered}
+                      onChange={e => setServicesOffered(e.target.value)}
+                      placeholder="e.g. Foam car wash, steam sofa extraction, deep tile descaling"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                      Preferred Service Areas in Hyderabad
+                    </label>
+                    <input
+                      type="text"
+                      value={serviceAreas}
+                      onChange={e => setServiceAreas(e.target.value)}
+                      placeholder="e.g. Hitec City, Gachibowli, Kondapur, Financial District"
+                      className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E4E0D8] rounded-full text-sm focus:outline-none focus:border-[#111111] text-[#111111]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    type="submit"
+                    disabled={submitting}
+                    icon={<ArrowRight className="w-4 h-4" />}
                   >
-                    {categories.map(c => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    {submitting ? 'Submitting Application…' : 'Submit Service Partner Application'}
+                  </Button>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#142326] mb-1">
-                    Years of Field Experience
-                  </label>
-                  <input
-                    type="number"
-                    value={experienceYears}
-                    onChange={e => setExperienceYears(e.target.value)}
-                    placeholder="e.g. 5"
-                    className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#142326] mb-1">
-                  Specific Services Offered
-                </label>
-                <input
-                  type="text"
-                  value={servicesOffered}
-                  onChange={e => setServicesOffered(e.target.value)}
-                  placeholder="e.g. Foam car wash, interior vacuuming, sofa shampooing"
-                  className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#142326] mb-1">
-                  Covered Areas / Hubs in Hyderabad
-                </label>
-                <input
-                  type="text"
-                  value={serviceAreas}
-                  onChange={e => setServiceAreas(e.target.value)}
-                  placeholder="e.g. HITEC City, Kondapur, Gachibowli, Banjara Hills"
-                  className="w-full px-3.5 py-2.5 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#142326] mb-1">
-                  Equipment &amp; Pricing Notes
-                </label>
-                <textarea
-                  rows={2}
-                  value={pricingNotes}
-                  onChange={e => setPricingNotes(e.target.value)}
-                  placeholder="e.g. Own high pressure washer, vacuum extraction machine, 4 staff members..."
-                  className="w-full px-3.5 py-2 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl text-xs focus:outline-none focus:border-[#2596be] focus:bg-white text-[#142326]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 bg-[#2596be] hover:bg-[#1e7ca0] disabled:opacity-60 text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-              >
-                <span>{submitting ? 'Submitting Application...' : 'Submit for Partner Review'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          )}
+              </form>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Section>
   );
 };
