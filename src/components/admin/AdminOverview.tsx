@@ -249,34 +249,48 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {apartments.map(apt => {
-            const reqCount = residentRequests.filter(r => r.apartmentId === apt.id).length;
-            const aptCampaigns = campaigns.filter(c => c.apartmentId === apt.id);
-            const activeCampaignsCount = aptCampaigns.length;
-
-            return (
-              <div
-                key={apt.id}
-                onClick={() => handleDrilldownCommunity(apt.id)}
-                className="p-3.5 bg-[#F8F9FA] hover:bg-[#F0F7FA] border border-[#E5E7EB] hover:border-[#2596be]/40 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group"
+          {apartments.length === 0 ? (
+            <div className="col-span-full p-8 text-center bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] space-y-2">
+              <Building2 className="w-8 h-8 mx-auto text-[#667085]/40" />
+              <p className="text-xs font-bold text-[#142326]">No Communities Registered</p>
+              <p className="text-[11px] text-[#667085]">Onboard your first gated community to start aggregating hyper-local demand.</p>
+              <button
+                onClick={() => setAdminSection('apartments')}
+                className="mt-2 px-3.5 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                <div className="space-y-0.5 min-w-0">
-                  <div className="font-bold text-sm text-[#142326] group-hover:text-[#2596be] transition-colors truncate">
-                    {apt.name}
-                  </div>
-                  <div className="text-xs text-[#667085] flex items-center gap-2">
-                    <span className="font-semibold text-[#2596be]">{reqCount} requests</span>
-                    <span>·</span>
-                    <span>{activeCampaignsCount} campaigns</span>
-                  </div>
-                </div>
+                + Add Community
+              </button>
+            </div>
+          ) : (
+            apartments.map(apt => {
+              const reqCount = residentRequests.filter(r => r.apartmentId === apt.id).length;
+              const aptCampaigns = campaigns.filter(c => c.apartmentId === apt.id);
+              const activeCampaignsCount = aptCampaigns.length;
 
-                <div className="p-2 bg-white rounded-lg border border-[#E5E7EB] group-hover:bg-[#2596be] group-hover:text-white group-hover:border-[#2596be] text-[#667085] transition-all shrink-0">
-                  <ArrowRight className="w-3.5 h-3.5" />
+              return (
+                <div
+                  key={apt.id}
+                  onClick={() => handleDrilldownCommunity(apt.id)}
+                  className="p-3.5 bg-[#F8F9FA] hover:bg-[#F0F7FA] border border-[#E5E7EB] hover:border-[#2596be]/40 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="font-bold text-sm text-[#142326] group-hover:text-[#2596be] transition-colors truncate">
+                      {apt.name}
+                    </div>
+                    <div className="text-xs text-[#667085] flex items-center gap-2">
+                      <span className="font-semibold text-[#2596be]">{reqCount} requests</span>
+                      <span>·</span>
+                      <span>{activeCampaignsCount} campaigns</span>
+                    </div>
+                  </div>
+
+                  <div className="p-2 bg-white rounded-lg border border-[#E5E7EB] group-hover:bg-[#2596be] group-hover:text-white group-hover:border-[#2596be] text-[#667085] transition-all shrink-0">
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -300,55 +314,72 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          {campaigns.slice(0, 4).map(camp => {
-            const apt = apartments.find(a => a.id === camp.apartmentId);
-            const srv = services.find(s => s.id === camp.serviceId);
-            const percent = Math.min(100, Math.round((camp.currentDemand / camp.minimumDemand) * 100));
-
-            return (
-              <div
-                key={camp.id}
-                className="p-4 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex flex-col md:flex-row md:items-center justify-between gap-3"
+          {campaigns.length === 0 ? (
+            <div className="p-8 text-center bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] space-y-2">
+              <Megaphone className="w-8 h-8 mx-auto text-[#667085]/40" />
+              <p className="text-xs font-bold text-[#142326]">No Active Campaigns</p>
+              <p className="text-[11px] text-[#667085]">Launch service campaigns across your societies to unlock bulk resident pricing.</p>
+              <button
+                onClick={() => {
+                  setAdminSection('campaigns');
+                  setActiveCampaignId(null);
+                }}
+                className="mt-2 px-3.5 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[#142326]">{srv?.name}</span>
-                    <span>·</span>
-                    <span className="text-xs font-semibold text-[#2596be]">{apt?.name}</span>
+                + Launch Campaign
+              </button>
+            </div>
+          ) : (
+            campaigns.slice(0, 4).map(camp => {
+              const apt = apartments.find(a => a.id === camp.apartmentId);
+              const srv = services.find(s => s.id === camp.serviceId);
+              const percent = Math.min(100, Math.round((camp.currentDemand / camp.minimumDemand) * 100));
+
+              return (
+                <div
+                  key={camp.id}
+                  className="p-4 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex flex-col md:flex-row md:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#142326]">{srv?.name}</span>
+                      <span>·</span>
+                      <span className="text-xs font-semibold text-[#2596be]">{apt?.name}</span>
+                    </div>
+                    <div className="text-xs text-[#667085] flex items-center gap-2">
+                      <span>Demand: <strong className="text-[#142326] font-mono">{camp.currentDemand} / {camp.minimumDemand}</strong> flats</span>
+                      <span>·</span>
+                      <span>Community Price: <strong className="text-[#142326] font-mono">₹{camp.communityPrice}</strong></span>
+                    </div>
                   </div>
-                  <div className="text-xs text-[#667085] flex items-center gap-2">
-                    <span>Demand: <strong className="text-[#142326] font-mono">{camp.currentDemand} / {camp.minimumDemand}</strong> flats</span>
-                    <span>·</span>
-                    <span>Community Price: <strong className="text-[#142326] font-mono">₹{camp.communityPrice}</strong></span>
+
+                  <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-[#E5E7EB]">
+                    <span
+                      className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider ${
+                        camp.status === 'completed'
+                          ? 'bg-[#2E8B57]/10 text-[#2E8B57]'
+                          : camp.status === 'target_reached' || camp.status === 'provider_confirmed'
+                          ? 'bg-[#2596be]/10 text-[#2596be]'
+                          : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                      }`}
+                    >
+                      {camp.status.replace('_', ' ')}
+                    </span>
+
+                    <button
+                      onClick={() => {
+                        setAdminSection('campaigns');
+                        setActiveCampaignId(camp.id);
+                      }}
+                      className="px-3 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Operations →
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-[#E5E7EB]">
-                  <span
-                    className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider ${
-                      camp.status === 'completed'
-                        ? 'bg-[#2E8B57]/10 text-[#2E8B57]'
-                        : camp.status === 'target_reached' || camp.status === 'provider_confirmed'
-                        ? 'bg-[#2596be]/10 text-[#2596be]'
-                        : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                    }`}
-                  >
-                    {camp.status.replace('_', ' ')}
-                  </span>
-
-                  <button
-                    onClick={() => {
-                      setAdminSection('campaigns');
-                      setActiveCampaignId(camp.id);
-                    }}
-                    className="px-3 py-1.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                  >
-                    Operations →
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

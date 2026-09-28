@@ -10,6 +10,7 @@ import {
   RWAPartnershipApplication,
   VendorApplication,
   CommissionSettlement,
+  CommissionStatus,
 } from '../types';
 
 const FALLBACK_SUPABASE_URL = 'https://dhbnbitsiuvqqkikeitv.supabase.co';
@@ -133,7 +134,56 @@ export function mapCategoryToDb(cat: ServiceCategory): any {
   };
 }
 
+export function parseProviderNotes(notesStr?: string): {
+  cleanNotes: string;
+  commissionPercentage: number;
+  payoutUpiId: string;
+  payoutAccountName: string;
+  payoutAccountNumber: string;
+  payoutIfsc: string;
+} {
+  const notes = notesStr || '';
+  let commissionPercentage = 15;
+  let payoutUpiId = '';
+  let payoutAccountName = '';
+  let payoutAccountNumber = '';
+  let payoutIfsc = '';
+
+  const metaMatch = notes.match(/\[ProviderMeta: (\{.*?\})\]/);
+  if (metaMatch) {
+    try {
+      const parsed = JSON.parse(metaMatch[1]);
+      if (parsed.commissionPercentage !== undefined) commissionPercentage = Number(parsed.commissionPercentage);
+      if (parsed.payoutUpiId) payoutUpiId = String(parsed.payoutUpiId);
+      if (parsed.payoutAccountName) payoutAccountName = String(parsed.payoutAccountName);
+      if (parsed.payoutAccountNumber) payoutAccountNumber = String(parsed.payoutAccountNumber);
+      if (parsed.payoutIfsc) payoutIfsc = String(parsed.payoutIfsc);
+    } catch {}
+  } else {
+    const commMatch = notes.match(/\[Commission: (\d+)%?\]/);
+    if (commMatch) commissionPercentage = parseInt(commMatch[1], 10);
+  }
+
+  const cleanNotes = notes.replace(/\[ProviderMeta: \{.*?\}\]/g, '').replace(/\[Commission: \d+%?\]/g, '').trim();
+
+  return { cleanNotes, commissionPercentage, payoutUpiId, payoutAccountName, payoutAccountNumber, payoutIfsc };
+}
+
+export function buildProviderNotes(prov: Partial<ServiceProvider>): string {
+  const userNotes = (prov.notes || '').replace(/\[ProviderMeta: \{.*?\}\]/g, '').replace(/\[Commission: \d+%?\]/g, '').trim();
+  const meta = {
+    commissionPercentage: prov.commissionPercentage ?? 15,
+    payoutUpiId: prov.payoutUpiId || '',
+    payoutAccountName: prov.payoutAccountName || '',
+    payoutAccountNumber: prov.payoutAccountNumber || '',
+    payoutIfsc: prov.payoutIfsc || '',
+  };
+  const metaStr = `[ProviderMeta: ${JSON.stringify(meta)}]`;
+  return userNotes ? `${userNotes} ${metaStr}` : metaStr;
+}
+
 export function mapProviderFromDb(data: any): ServiceProvider {
+  const parsedMeta = parseProviderNotes(data.notes);
   return {
     id: data.id,
     businessName: data.business_name || data.businessName,
@@ -145,11 +195,11 @@ export function mapProviderFromDb(data: any): ServiceProvider {
     servicesOffered: data.services_offered || data.servicesOffered || [],
     serviceAreas: data.service_areas || data.serviceAreas || [],
     address: data.address,
-    commissionPercentage: Number(data.commission_percentage ?? data.commissionPercentage ?? 15),
-    payoutUpiId: data.payout_upi_id || data.payoutUpiId || '',
-    payoutAccountName: data.payout_account_name || data.payoutAccountName || '',
-    payoutAccountNumber: data.payout_account_number || data.payoutAccountNumber || '',
-    payoutIfsc: data.payout_ifsc || data.payoutIfsc || '',
+    commissionPercentage: Number(data.commission_percentage ?? parsedMeta.commissionPercentage ?? 15),
+    payoutUpiId: data.payout_upi_id || parsedMeta.payoutUpiId || '',
+    payoutAccountName: data.payout_account_name || parsedMeta.payoutAccountName || '',
+    payoutAccountNumber: data.payout_account_number || parsedMeta.payoutAccountNumber || '',
+    payoutIfsc: data.payout_ifsc || parsedMeta.payoutIfsc || '',
     normalPricingRatio: data.normal_pricing_ratio || data.normalPricingRatio || 1.0,
     verificationStatus: data.verification_status || data.verificationStatus || 'verified',
     completedJobs: data.completed_jobs || data.completedJobs || 0,
@@ -171,16 +221,11 @@ export function mapProviderToDb(prov: ServiceProvider): any {
     services_offered: prov.servicesOffered,
     service_areas: prov.serviceAreas,
     address: prov.address,
-    commission_percentage: prov.commissionPercentage ?? 15,
-    payout_upi_id: prov.payoutUpiId || null,
-    payout_account_name: prov.payoutAccountName || null,
-    payout_account_number: prov.payoutAccountNumber || null,
-    payout_ifsc: prov.payoutIfsc || null,
     normal_pricing_ratio: prov.normalPricingRatio,
     verification_status: prov.verificationStatus,
     completed_jobs: prov.completedJobs,
     rating: prov.rating,
-    notes: prov.notes,
+    notes: buildProviderNotes(prov),
     created_at: prov.createdAt,
   };
 }
@@ -311,7 +356,82 @@ export function mapResidentRequestToDb(req: ResidentRequest): any {
   };
 }
 
+export function parseBookingNotes(notesStr?: string): {
+  cleanNotes: string;
+  commissionRate: number;
+  commissionAmount: number;
+  vendorPayoutAmount: number;
+  commissionStatus: CommissionStatus;
+  settlementReference: string;
+  settledAt?: string;
+  campaignId?: string;
+} {
+  const notes = notesStr || '';
+  let commissionRate = 15;
+  let commissionAmount = 0;
+  let vendorPayoutAmount = 0;
+  let commissionStatus: CommissionStatus = 'pending';
+  let settlementReference = '';
+  let settledAt: string | undefined = undefined;
+  let campaignId: string | undefined = undefined;
+
+  const metaMatch = notes.match(/\[BookingMeta: (\{.*?\})\]/);
+  if (metaMatch) {
+    try {
+      const parsed = JSON.parse(metaMatch[1]);
+      if (parsed.commissionRate !== undefined) commissionRate = Number(parsed.commissionRate);
+      if (parsed.commissionAmount !== undefined) commissionAmount = Number(parsed.commissionAmount);
+      if (parsed.vendorPayoutAmount !== undefined) vendorPayoutAmount = Number(parsed.vendorPayoutAmount);
+      if (parsed.commissionStatus) commissionStatus = parsed.commissionStatus;
+      if (parsed.settlementReference) settlementReference = parsed.settlementReference;
+      if (parsed.settledAt) settledAt = parsed.settledAt;
+      if (parsed.campaignId) campaignId = parsed.campaignId;
+    } catch {}
+  }
+
+  if (!campaignId) {
+    const campMatch = notes.match(/\[Campaign: ([^\]]+)\]/);
+    if (campMatch) campaignId = campMatch[1];
+  }
+
+  const cleanNotes = notes
+    .replace(/\[BookingMeta: \{.*?\}\]/g, '')
+    .replace(/\[Campaign: [^\]]+\]/g, '')
+    .trim();
+
+  return {
+    cleanNotes,
+    commissionRate,
+    commissionAmount,
+    vendorPayoutAmount,
+    commissionStatus,
+    settlementReference,
+    settledAt,
+    campaignId,
+  };
+}
+
+export function buildBookingNotes(b: Partial<Booking>): string {
+  const userNotes = (b.notes || '')
+    .replace(/\[BookingMeta: \{.*?\}\]/g, '')
+    .replace(/\[Campaign: [^\]]+\]/g, '')
+    .trim();
+  const meta = {
+    commissionRate: b.commissionRate ?? 15,
+    commissionAmount: b.commissionAmount ?? 0,
+    vendorPayoutAmount: b.vendorPayoutAmount ?? 0,
+    commissionStatus: b.commissionStatus || 'pending',
+    settlementReference: b.settlementReference || '',
+    settledAt: b.settledAt || null,
+    campaignId: b.campaignId || null,
+  };
+  const metaStr = `[BookingMeta: ${JSON.stringify(meta)}]`;
+  const campStr = b.campaignId ? ` [Campaign: ${b.campaignId}]` : '';
+  return userNotes ? `${userNotes} ${metaStr}${campStr}` : `${metaStr}${campStr}`;
+}
+
 export function mapBookingFromDb(data: any): Booking {
+  const parsedMeta = parseBookingNotes(data.notes);
   return {
     id: data.id,
     bookingNumber: data.booking_number || data.bookingNumber,
@@ -332,19 +452,13 @@ export function mapBookingFromDb(data: any): Booking {
     providerId: data.provider_id || data.providerId,
     providerName: data.provider_name || data.providerName,
     providerPhone: data.provider_phone || data.providerPhone,
-    commissionRate: data.commission_rate !== undefined ? Number(data.commission_rate) : data.commissionRate,
-    commissionAmount: data.commission_amount !== undefined ? Number(data.commission_amount) : data.commissionAmount,
-    vendorPayoutAmount: data.vendor_payout_amount !== undefined ? Number(data.vendor_payout_amount) : data.vendorPayoutAmount,
-    commissionStatus: data.commission_status || data.commissionStatus || 'pending',
-    settlementReference: data.settlement_reference || data.settlementReference || '',
-    settledAt: data.settled_at || data.settledAt,
-    campaignId:
-      data.campaign_id ||
-      data.campaignId ||
-      (() => {
-        const m = (data.notes || '').match(/\[Campaign: ([^\]]+)\]/);
-        return m ? m[1] : undefined;
-      })(),
+    commissionRate: data.commission_rate !== undefined ? Number(data.commission_rate) : parsedMeta.commissionRate,
+    commissionAmount: data.commission_amount !== undefined ? Number(data.commission_amount) : parsedMeta.commissionAmount,
+    vendorPayoutAmount: data.vendor_payout_amount !== undefined ? Number(data.vendor_payout_amount) : parsedMeta.vendorPayoutAmount,
+    commissionStatus: data.commission_status || parsedMeta.commissionStatus || 'pending',
+    settlementReference: data.settlement_reference || parsedMeta.settlementReference || '',
+    settledAt: data.settled_at || parsedMeta.settledAt,
+    campaignId: data.campaign_id || data.campaignId || parsedMeta.campaignId,
     notes: data.notes || '',
     createdAt: data.created_at || data.createdAt || new Date().toISOString(),
     updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
@@ -352,12 +466,6 @@ export function mapBookingFromDb(data: any): Booking {
 }
 
 export function mapBookingToDb(b: Booking): any {
-  let mappedNotes = b.notes || '';
-  if (b.campaignId && !mappedNotes.includes(`[Campaign: ${b.campaignId}]`)) {
-    mappedNotes = mappedNotes
-      ? `${mappedNotes} [Campaign: ${b.campaignId}]`
-      : `[Campaign: ${b.campaignId}]`;
-  }
   return {
     id: b.id,
     booking_number: b.bookingNumber,
@@ -376,17 +484,11 @@ export function mapBookingToDb(b: Booking): any {
     booking_type: b.bookingType,
     status: b.status,
     provider_id: b.providerId ?? null,
-    provider_name: b.providerName,
-    provider_phone: b.providerPhone,
-    commission_rate: b.commissionRate,
-    commission_amount: b.commissionAmount,
-    vendor_payout_amount: b.vendorPayoutAmount,
-    commission_status: b.commissionStatus || 'pending',
-    settlement_reference: b.settlementReference || null,
-    settled_at: b.settledAt || null,
-    notes: mappedNotes,
+    provider_name: b.providerName ?? null,
+    provider_phone: b.providerPhone ?? null,
+    notes: buildBookingNotes(b),
     created_at: b.createdAt,
-    updated_at: b.updatedAt,
+    updated_at: b.updatedAt || new Date().toISOString(),
   };
 }
 

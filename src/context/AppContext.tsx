@@ -51,6 +51,8 @@ import {
   mapResidentRequestToDb,
   mapBookingFromDb,
   mapBookingToDb,
+  buildBookingNotes,
+  buildProviderNotes,
   mapRWAApplicationFromDb,
   mapRWAApplicationToDb,
   mapVendorApplicationFromDb,
@@ -255,17 +257,32 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  ADMIN_SECTION: 'gk_admin_section_v2',
-  DEMO_APARTMENTS: 'gk_apartments_v2',
-  DEMO_CATEGORIES: 'gk_categories_v2',
-  DEMO_PROVIDERS: 'gk_providers_v2',
-  DEMO_SERVICES: 'gk_services_v2',
-  DEMO_CAMPAIGNS: 'gk_campaigns_v2',
-  DEMO_RESIDENT_REQUESTS: 'gk_resident_requests_v2',
-  DEMO_BOOKINGS: 'gk_bookings_v2',
-  DEMO_RWA_APPS: 'gk_rwa_apps_v2',
-  DEMO_VENDOR_APPS: 'gk_vendor_apps_v2',
+  ADMIN_SECTION: 'gk_admin_section_v3',
+  DEMO_APARTMENTS: 'gk_apartments_v3',
+  DEMO_CATEGORIES: 'gk_categories_v3',
+  DEMO_PROVIDERS: 'gk_providers_v3',
+  DEMO_SERVICES: 'gk_services_v3',
+  DEMO_CAMPAIGNS: 'gk_campaigns_v3',
+  DEMO_RESIDENT_REQUESTS: 'gk_resident_requests_v3',
+  DEMO_BOOKINGS: 'gk_bookings_v3',
+  DEMO_RWA_APPS: 'gk_rwa_apps_v3',
+  DEMO_VENDOR_APPS: 'gk_vendor_apps_v3',
 };
+
+// Purge legacy storage keys on load to ensure clean start
+try {
+  const staleKeys = [
+    'gk_apartments_v2', 'gk_categories_v2', 'gk_providers_v2', 'gk_services_v2',
+    'gk_campaigns_v2', 'gk_resident_requests_v2', 'gk_bookings_v2', 'gk_rwa_apps_v2', 'gk_vendor_apps_v2',
+    'gk_demo_apartments_v1', 'gk_demo_categories_v1', 'gk_demo_providers_v1', 'gk_demo_services_v1',
+    'gk_demo_campaigns_v1', 'gk_demo_resident_requests_v1', 'gk_demo_bookings_v1', 'gk_demo_rwa_apps_v1', 'gk_demo_vendor_apps_v1'
+  ];
+  for (const k of staleKeys) {
+    localStorage.removeItem(k);
+  }
+} catch {
+  // ignore
+}
 
 function loadLocalData<T>(key: string, fallback: T): T {
   try {
@@ -1405,26 +1422,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const existing = providers.find(p => p.id === id);
       if (!existing) return { success: false, error: 'Provider not found.' };
 
-      setProviders(prev => prev.map(p => (p.id === id ? { ...p, ...provUpdates } : p)));
+      const updatedProv: ServiceProvider = { ...existing, ...provUpdates };
+      setProviders(prev => prev.map(p => (p.id === id ? updatedProv : p)));
 
-      const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (provUpdates.businessName) dbUpdates.business_name = provUpdates.businessName;
-      if (provUpdates.contactPerson) dbUpdates.contact_person = provUpdates.contactPerson;
-      if (provUpdates.phone) dbUpdates.phone = provUpdates.phone;
-      if (provUpdates.whatsapp) dbUpdates.whatsapp = provUpdates.whatsapp;
-      if (provUpdates.email) dbUpdates.email = provUpdates.email;
-      if (provUpdates.address) dbUpdates.address = provUpdates.address;
-      if (provUpdates.commissionPercentage !== undefined)
-        dbUpdates.commission_percentage = provUpdates.commissionPercentage;
-      if (provUpdates.payoutUpiId !== undefined) dbUpdates.payout_upi_id = provUpdates.payoutUpiId;
-      if (provUpdates.payoutAccountName !== undefined)
-        dbUpdates.payout_account_name = provUpdates.payoutAccountName;
-      if (provUpdates.payoutAccountNumber !== undefined)
-        dbUpdates.payout_account_number = provUpdates.payoutAccountNumber;
-      if (provUpdates.payoutIfsc !== undefined) dbUpdates.payout_ifsc = provUpdates.payoutIfsc;
-      if (provUpdates.verificationStatus)
-        dbUpdates.verification_status = provUpdates.verificationStatus;
-      if (provUpdates.notes !== undefined) dbUpdates.notes = provUpdates.notes;
+      const dbUpdates: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+        notes: buildProviderNotes(updatedProv),
+      };
+      if (provUpdates.businessName !== undefined) dbUpdates.business_name = provUpdates.businessName;
+      if (provUpdates.contactPerson !== undefined) dbUpdates.contact_person = provUpdates.contactPerson;
+      if (provUpdates.phone !== undefined) dbUpdates.phone = provUpdates.phone;
+      if (provUpdates.whatsapp !== undefined) dbUpdates.whatsapp = provUpdates.whatsapp;
+      if (provUpdates.email !== undefined) dbUpdates.email = provUpdates.email;
+      if (provUpdates.address !== undefined) dbUpdates.address = provUpdates.address;
+      if (provUpdates.categoryIds !== undefined) dbUpdates.category_ids = provUpdates.categoryIds;
+      if (provUpdates.servicesOffered !== undefined) dbUpdates.services_offered = provUpdates.servicesOffered;
+      if (provUpdates.serviceAreas !== undefined) dbUpdates.service_areas = provUpdates.serviceAreas;
+      if (provUpdates.normalPricingRatio !== undefined) dbUpdates.normal_pricing_ratio = provUpdates.normalPricingRatio;
+      if (provUpdates.verificationStatus !== undefined) dbUpdates.verification_status = provUpdates.verificationStatus;
+      if (provUpdates.completedJobs !== undefined) dbUpdates.completed_jobs = provUpdates.completedJobs;
+      if (provUpdates.rating !== undefined) dbUpdates.rating = provUpdates.rating;
 
       const res = await runDb(() =>
         supabase!.from('service_providers').update(dbUpdates).eq('id', id)
@@ -1514,8 +1531,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { success: false, error: 'Name, phone, and flat number are required.' };
       }
 
+      let resolvedApt = apartments.find(a => a.id === bookingData.apartmentId);
+      let resolvedAptId = bookingData.apartmentId;
+      let resolvedAptName = resolvedApt?.name || 'Community Resident';
+
+      // Auto-fallback/ensure apartment exists in DB if needed so foreign key constraint is satisfied
+      if (!resolvedApt && isBackendConnected && supabase) {
+        if (apartments.length > 0) {
+          resolvedApt = apartments[0];
+          resolvedAptId = apartments[0].id;
+          resolvedAptName = apartments[0].name;
+        } else {
+          // If no apartment exists in DB, provision a general community entry
+          const genApt: Apartment = {
+            id: 'community_hyderabad_central',
+            name: bookingData.notes?.includes('Society:')
+              ? (bookingData.notes.match(/Society:\s*([^·\n]+)/)?.[1]?.trim() || 'GK Community Hub')
+              : 'GK Community Hub',
+            slug: 'gk-community-hub',
+            portalToken: 'GKCITY01',
+            address: 'Hitec City, Hyderabad',
+            area: 'Hitec City',
+            city: 'Hyderabad',
+            pincode: '500081',
+            totalUnits: 250,
+            gateSecurityApp: 'Digital Gate Pass',
+            rwaContact: 'Operations Team',
+            rwaPhone: '+91 94943 35848',
+            rwaEmail: 'admin@gkapartmentcare.com',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+          };
+          try {
+            await supabase.from('apartments').insert(mapApartmentToDb(genApt));
+            setApartments([genApt]);
+            resolvedAptId = genApt.id;
+            resolvedAptName = genApt.name;
+          } catch {
+            // best-effort
+          }
+        }
+      }
+
       const srv = services.find(s => s.id === bookingData.serviceId);
-      const apt = apartments.find(a => a.id === bookingData.apartmentId);
       const prov = providers.find(p => p.id === srv?.providerId);
 
       const bookingNum = `GK-${(srv?.name.substring(0, 2) || 'CA').toUpperCase()}-${Math.floor(
@@ -1531,8 +1589,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bookingNumber: bookingNum,
         serviceId: bookingData.serviceId,
         serviceName: srv?.name || 'Home Care Service',
-        apartmentId: bookingData.apartmentId,
-        apartmentName: apt?.name || 'Community Resident',
+        apartmentId: resolvedAptId,
+        apartmentName: resolvedAptName,
         residentName: bookingData.residentName.trim(),
         phone: bookingData.phone,
         email: bookingData.email,
@@ -1603,9 +1661,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const dbUpdates: Record<string, unknown> = {
         status,
-        commission_rate: rate,
-        commission_amount: commissionAmount,
-        vendor_payout_amount: vendorPayoutAmount,
+        notes: buildBookingNotes(nextBooking),
         updated_at: new Date().toISOString(),
       };
       if (providerId) {
@@ -1690,18 +1746,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (supabase && isBackendConnected) {
         for (const bId of data.bookingIds) {
-          try {
-            await supabase
-              .from('bookings')
-              .update({
-                commission_status: 'settled',
-                settlement_reference: data.transactionReference,
-                settled_at: newSettlement.settledAt,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', bId);
-          } catch {
-            // best-effort
+          const currentB = bookings.find(b => b.id === bId);
+          if (currentB) {
+            const updatedB: Booking = {
+              ...currentB,
+              commissionStatus: 'settled',
+              settlementReference: data.transactionReference,
+              settledAt: newSettlement.settledAt,
+              updatedAt: new Date().toISOString(),
+            };
+            try {
+              await supabase
+                .from('bookings')
+                .update({
+                  notes: buildBookingNotes(updatedB),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', bId);
+            } catch {
+              // best-effort
+            }
           }
         }
       }
@@ -1749,16 +1813,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await supabase
             .from('bookings')
             .update({
-              commission_rate: rate,
-              commission_amount: commissionAmount,
-              vendor_payout_amount: vendorPayoutAmount,
-              ...(updates.commissionStatus
-                ? { commission_status: updates.commissionStatus }
-                : {}),
-              ...(updates.settlementReference !== undefined
-                ? { settlement_reference: updates.settlementReference }
-                : {}),
-              ...(updates.settledAt !== undefined ? { settled_at: updates.settledAt } : {}),
+              notes: buildBookingNotes(nextBooking),
               updated_at: new Date().toISOString(),
             })
             .eq('id', bookingId);
@@ -2008,52 +2063,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [vendorApplications, categories, addProvider, updateVendorApplicationStatus, defaultCommissionRate]
   );
 
-  /* ---------------- Demo reset ---------------- */
-  const resetToDemoData = useCallback(() => {
-    if (isBackendConnected) {
-      // Never wipe the production DB from the UI.
-      setCampaigns([]);
-      setResidentRequests([]);
-      void loadSupabaseData();
-      return;
-    }
-    localStorage.removeItem(STORAGE_KEYS.DEMO_APARTMENTS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_CATEGORIES);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_PROVIDERS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_SERVICES);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_CAMPAIGNS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_RESIDENT_REQUESTS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_BOOKINGS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_RWA_APPS);
-    localStorage.removeItem(STORAGE_KEYS.DEMO_VENDOR_APPS);
-
-    // Clear legacy v1 keys as well
-    const legacyKeys = [
-      'gk_demo_apartments_v1',
-      'gk_demo_categories_v1',
-      'gk_demo_providers_v1',
-      'gk_demo_services_v1',
-      'gk_demo_campaigns_v1',
-      'gk_demo_resident_requests_v1',
-      'gk_demo_bookings_v1',
-      'gk_demo_rwa_apps_v1',
-      'gk_demo_vendor_apps_v1',
-    ];
-    for (const k of legacyKeys) {
-      localStorage.removeItem(k);
-    }
-
+  /* ---------------- Demo reset / Purge ---------------- */
+  const resetToDemoData = useCallback(async () => {
+    // Clear state
     setApartments([]);
-    setCategories([]);
     setProviders([]);
-    setServices([]);
     setCampaigns([]);
     setResidentRequests([]);
     setBookings([]);
     setRwaApplications([]);
     setVendorApplications([]);
     setSelectedApartmentId('');
-  }, [isBackendConnected, loadSupabaseData]);
+
+    // Clear localStorage keys
+    for (const key of Object.values(STORAGE_KEYS)) {
+      localStorage.removeItem(key);
+    }
+    localStorage.removeItem('gk_resident_profile');
+
+    if (isBackendConnected && supabase) {
+      try {
+        await Promise.all([
+          supabase.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('resident_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('campaigns').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('rwa_applications').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('vendor_applications').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('services').update({ provider_id: null, provider_name: null, apartment_ids: [] }).neq('id', '00000000-0000-0000-0000-000000000000'),
+        ]);
+        await supabase.from('service_providers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('apartments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (err) {
+        console.warn('Error purging database tables:', err);
+      }
+    }
+  }, [isBackendConnected]);
 
   return (
     <AppContext.Provider

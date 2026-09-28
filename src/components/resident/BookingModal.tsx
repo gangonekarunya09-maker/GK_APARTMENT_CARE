@@ -22,6 +22,7 @@ export const BookingModal: React.FC = () => {
     bookingModalService,
     setBookingModalService,
     selectedApartment,
+    apartments,
     campaigns,
     createBooking,
     setResidentTab,
@@ -31,6 +32,10 @@ export const BookingModal: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Slot & Date, 2: Resident Details, 3: Success Confirmation
   const [selectedDate, setSelectedDate] = useState<string>('Tomorrow');
   const [selectedSlot, setSelectedSlot] = useState<string>('');
+  const [bookingApartmentId, setBookingApartmentId] = useState<string>(
+    selectedApartment?.id || (apartments[0]?.id ?? '')
+  );
+  const [customSocietyName, setCustomSocietyName] = useState<string>('');
   
   const savedProfile = (() => {
     try {
@@ -50,6 +55,15 @@ export const BookingModal: React.FC = () => {
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
+
+  // Sync apartment selection when modal opens or apartments change
+  React.useEffect(() => {
+    if (selectedApartment?.id) {
+      setBookingApartmentId(selectedApartment.id);
+    } else if (apartments.length > 0 && !bookingApartmentId) {
+      setBookingApartmentId(apartments[0].id);
+    }
+  }, [selectedApartment, apartments, bookingApartmentId]);
 
   if (!bookingModalService) return null;
 
@@ -77,13 +91,18 @@ export const BookingModal: React.FC = () => {
     setBookingError(null);
     setBookingSubmitting(true);
     try {
+      const chosenAptId = selectedApartment?.id || bookingApartmentId || apartments[0]?.id || 'community_hyderabad_central';
       const activeCampaign = campaigns.find(
-        c => c.apartmentId === selectedApartment?.id && c.serviceId === bookingModalService.id
+        c => c.apartmentId === chosenAptId && c.serviceId === bookingModalService.id
       );
+
+      const bookingNotesArray: string[] = [];
+      if (notes.trim()) bookingNotesArray.push(notes.trim());
+      if (customSocietyName.trim()) bookingNotesArray.push(`Society: ${customSocietyName.trim()}`);
 
       const result = await createBooking({
         serviceId: bookingModalService.id,
-        apartmentId: selectedApartment?.id || 'community_green_valley_001',
+        apartmentId: chosenAptId,
         residentName: fullName,
         phone: phone.startsWith('+91') ? phone : `+91 ${phone}`,
         email: email || undefined,
@@ -94,7 +113,7 @@ export const BookingModal: React.FC = () => {
         price: currentPrice,
         bookingType: 'regular',
         campaignId: activeCampaign?.id,
-        notes: notes || undefined,
+        notes: bookingNotesArray.length > 0 ? bookingNotesArray.join(' · ') : undefined,
       });
 
       if (result.success && result.data) {
@@ -283,13 +302,54 @@ export const BookingModal: React.FC = () => {
               <div className="p-3 bg-[#F8F9FA] rounded-xl border border-[#E5E7EB] flex items-center justify-between text-xs">
                 <div>
                   <span className="text-[#667085]">{selectedDate} · {activeSlot}</span>
-                  <div className="font-bold text-[#142326]">{selectedApartment?.name}</div>
+                  <div className="font-bold text-[#142326]">
+                    {selectedApartment?.name || apartments.find(a => a.id === bookingApartmentId)?.name || customSocietyName || 'Doorstep Service'}
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-[11px] text-[#667085]">Pay on Service</span>
                   <div className="text-sm font-extrabold text-[#2596be]">₹{currentPrice}</div>
                 </div>
               </div>
+
+              {/* Community / Apartment Selection if not preset */}
+              {!selectedApartment && (
+                <div>
+                  {apartments.length > 0 ? (
+                    <div>
+                      <label className="block text-xs font-bold text-[#142326] mb-1">
+                        Select Your Gated Community <span className="text-[#DC2626]">*</span>
+                      </label>
+                      <select
+                        value={bookingApartmentId}
+                        onChange={e => setBookingApartmentId(e.target.value)}
+                        required
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326] cursor-pointer"
+                      >
+                        {apartments.map(apt => (
+                          <option key={apt.id} value={apt.id}>
+                            {apt.name} ({apt.area})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold text-[#142326] mb-1">
+                        Apartment / Society Name <span className="text-[#DC2626]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={customSocietyName}
+                        onChange={e => setCustomSocietyName(e.target.value)}
+                        placeholder="e.g. My Home Bhooja / Aparna Zenith"
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-[#2596be] text-[#142326]"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Full Name */}
               <div>
