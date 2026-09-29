@@ -1,35 +1,28 @@
-# `src/components/resident/` — Resident Storefront
+# `src/components/resident/` — Resident Storefront & Homepage
 
-The default public experience for residents: browsing services, booking them, tracking
-bookings, and onboarding flows for RWAs and vendors.
+The public web experience for Hyderabad residents: discovering doorstep home and auto services, exploring community bulk pricing, and submitting partnership applications.
 
 ## Files
 
 | File | Role |
 |------|------|
-| `Hero.tsx` | Landing hero with value props and CTA buttons (scroll to catalog / open booking modal). |
-| `ServiceCatalog.tsx` | Filterable service grid for the selected community; renders `ServiceCard` per service; category filters + search. |
-| `ServiceCard.tsx` | Single service tile: pricing tiers (normal / community / Sunday bulk), demand badge, "Book" (opens `BookingModal` via context) and "Share" (opens `WhatsAppShareModal`) actions. |
-| `BookingModal.tsx` | Global booking dialog mounted once in `App.tsx`; driven by `bookingModalService` context state. Collects flat/date/slot details and calls `createBooking`, awaiting the `MutationResult` to show submit loading and an inline error on failure. Also reused by `admin/BookingsManager`. |
-| `WhatsAppShareModal.tsx` | Global share dialog mounted once in `App.tsx`; driven by `shareModalService` state; builds WhatsApp share links for campaigns. |
-| `MyBookingsView.tsx` | "My bookings" tab: lists the resident's bookings, renders `StatusTracker` per booking. |
-| `StatusTracker.tsx` | Visual timeline of a booking's lifecycle (`received → vendor_assigned → in_progress → completed`) with provider contact actions. |
-| `TrustSection.tsx` | Static trust/safety marketing section under the catalog. |
-| `RWAPartnershipsView.tsx` | "RWA" tab: partnership pitch + `submitRWAApplication` form (awaitable mutation with error handling). |
-| `VendorOnboardingView.tsx` | "Vendor" tab: onboarding pitch + `submitVendorApplication` form (awaitable mutation with error handling). |
-| `MobileStickyCTA.tsx` | Fixed bottom call-to-action on mobile; opens the booking modal for the featured service. |
-| `SocietySelectorModal.tsx` | Community picker modal; toggled by `societySelectorOpen` context state. **Not currently mounted anywhere** — the root website has no community-selection gate (community entry is via explicit /c/:slug/:token links). |
+| `Hero.tsx` | Display headline, primary & secondary action CTAs, and a pinned live stat ticker marquee. |
+| `StepsSection.tsx` | 01–03 numbered 3-step breakdown of hyper-local demand pooling and doorstep delivery. |
+| `ServicesMarquee.tsx` | Dual-row continuous marquee of apartment service offerings with pause/play controls. |
+| `ServiceCatalog.tsx` | Filterable service grid with search bar, category pill chips, and empty state fallback. |
+| `ServiceCard.tsx` | 24px-radius service card with standard price vs. doorstep bulk price breakdown, booking modal trigger, and WhatsApp sharing. |
+| `ComparisonSection.tsx` | Feature comparison table contrasting GK Apartment Care against random outside vendors. |
+| `NetworkSection.tsx` | Hyderabad network stat cards (`25K+ Flats`, `45+ Societies`, `35% Savings`, `4.9★ Rating`) paired with an instant society/area lookup tool. |
+| `AssociationTrustSection.tsx` | Verified society protocols (quiet hours, police verification, gate passes) and RWA committee testimonials. |
+| `FAQSection.tsx` | Accordion FAQ addressing pooling mechanics, quiet hours, staff verification, and payment terms. |
+| `ClosingCTA.tsx` | Full-bleed dark inverse section with dual pill buttons. |
+| `RWAPartnershipsView.tsx` | "RWA Society Partners" tab: partnership proposal pitch + society onboarding application form. |
+| `VendorOnboardingView.tsx` | "Service Providers" tab: partner benefits pitch + vendor application form. |
+| `BookingModal.tsx` | Global multi-step booking modal: community selection, date/slot picker, resident details, and confirmation card. |
+| `WhatsAppShareModal.tsx` | Global WhatsApp share modal: formatted society group message generator with copy/redirect actions. |
+| `MyBookingsView.tsx` & `StatusTracker.tsx` | Booking lookup & visual progress timeline component. |
 
 ## Connections
 
-- **Composed by** `src/App.tsx` inside the default resident route: `Navbar` (common) +
-  tab-conditional views (`ServiceCatalog`/`Hero`/`TrustSection`, `MyBookingsView`,
-  `RWAPartnershipsView`, `VendorOnboardingView`, `CommunityCustomerPortal` from `public/`)
-  + `Footer` + the global modals `BookingModal` and `WhatsAppShareModal`.
-- Internal composition: `ServiceCatalog → ServiceCard`; `MyBookingsView → StatusTracker`.
-- All data/actions come from `useApp()` (`src/context/AppContext.tsx`): services, categories,
-  campaigns, bookings, modal setters, and the awaitable `MutationResult` mutations
-  (`createBooking`, `submitRWAApplication`, `submitVendorApplication`, …) that surface
-  loading and errors inline.
-- Types from `src/types/` (`Service`, `Booking`, `BookingStatus`, …). Icons via
-  `lucide-react`, animation via `motion/react`.
+- **Composed by** `src/App.tsx` on the default route (`/`) along with `PromoBar`, `Navbar`, and `Footer`.
+- **Modals** (`BookingModal`, `WhatsAppShareModal`) are mounted globally at the root of `App.tsx` and driven by context state.

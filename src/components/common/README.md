@@ -1,23 +1,10 @@
-# `src/components/common/` — Shared Chrome
+# `src/components/common/` — Global Chrome
 
-Small, app-wide UI pieces used by multiple audiences.
-
-## Files
+Shared header, promo, footer, and branding components:
 
 | File | Role |
 |------|------|
-| `Logo.tsx` | Brand mark component, parameterizable by size/variant. |
-| `Navbar.tsx` | Top navigation for the resident experience: switches `residentTab` (services / community / my-bookings / RWA / vendor) via the context, and opens the society selector. |
-| `Footer.tsx` | Site footer with quick links, society-selector trigger, and contact info. |
-
-## Connections
-
-- `Navbar` and `Footer` are rendered by `src/App.tsx` around the resident views only —
-  the `public/` portal pages render their own minimal headers, and the `admin/` dashboard
-  uses `AdminSidebar` instead.
-- Both import the context (`src/context/AppContext.tsx`) to drive tab navigation.
-- `Logo` is reused across folders: `common/Navbar`, `common/Footer`, `admin/AdminSidebar`,
-  `admin/AdminLogin`, and both `public/` portal pages.
-- `resident/SocietySelectorModal` is no longer mounted: the root website has no
-  community-selection gate, and community entry is via explicit /c/:slug/:token portal
-  links. (The modal component and its context state remain available but unused.)
+| `PromoBar.tsx` | Top announcement bar highlighting Sunday bulk discount batches with inline exploration action. |
+| `Navbar.tsx` | Sticky navigation with brand wordmark, tab triggers (Services, RWA Society Partners, Service Providers), helpline quick link, and primary "Book a Service" pill button. |
+| `Footer.tsx` | 4-column structured footer with brand mission, platform links, Hyderabad operations desk, operator portal login link, and interactive legal policy modals (Privacy, Terms, Cancellation). |
+| `Logo.tsx` | Parameterizable SVG apartment tower icon and brand typography. |

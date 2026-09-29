@@ -1,30 +1,19 @@
 # `src/components/` — React UI Layer
 
-All presentational and interactive components, organized by audience. Every component that
-needs data or actions pulls them from **`src/context/AppContext.tsx`** via the `useApp()`
-hook — components never hold domain state of their own.
+All presentational and interactive components, organized by domain and audience. Data and mutations are consumed from **`src/context/AppContext.tsx`** via the `useApp()` hook.
 
 ## Sub-folders
 
 | Folder | Audience | Contents |
 |--------|----------|----------|
-| `admin/` | Platform operators | Operator dashboard: Supabase-only login, sidebar, and 10+ resource managers (communities, services, categories, providers, campaigns, requests, bookings, demand, WhatsApp, analytics). → `admin/README.md` |
-| `common/` | Everyone | Shared chrome: `Navbar`, `Footer`, `Logo`. → `common/README.md` |
-| `public/` | Anonymous link visitors | Standalone portal pages rendered *without* the resident shell: `PublicCampaignPage` (WhatsApp campaign links) and `CommunityCustomerPortal` (per-community portal). Both receive **scoped data via props** and render loading/error states. → `public/README.md` |
-| `resident/` | Residents | The main storefront: hero, service catalog + cards, booking flow, WhatsApp sharing, bookings tracker, RWA partnership and vendor onboarding forms, mobile CTA, society selector. → `resident/README.md` |
+| `ui/` | Reusable Primitives | Foundation tokens & design system primitives: `Button`, `Badge`, `Section`, `Marquee`, `StatCard`, `Accordion`. → `ui/README.md` |
+| `common/` | Global Chrome | Shared layout components: `Navbar`, `PromoBar`, `Footer`, `Logo`. → `common/README.md` |
+| `resident/` | Public Website & Residents | Homepage sections (`Hero`, `StepsSection`, `ServicesMarquee`, `ServiceCatalog`, `ComparisonSection`, `NetworkSection`, `AssociationTrustSection`, `FAQSection`, `ClosingCTA`), RWA partnership proposals, vendor partner onboarding, and global modals (`BookingModal`, `WhatsAppShareModal`). → `resident/README.md` |
+| `public/` | Gated Community Link Visitors | Scoped customer portals: `CommunityCustomerPortal` (tabbed **Services & Bulk Pools** + **Track Orders & Bookings**) and `PublicCampaignPage` (WhatsApp campaign group-buying links). → `public/README.md` |
+| `admin/` | Platform Operators | Admin operations hub: Supabase authentication, dashboard overview, and 12 dedicated resource managers. → `admin/README.md` |
 
 ## Connections
 
-- **Rendered by** `src/App.tsx`, which classifies the URL with `src/lib/router.ts` and picks
-  between the `public/` pages, the `admin/` dashboard, and the `resident/` storefront.
-- **Depend on** `src/context/` for all data and mutations (now awaitable
-  `MutationResult` calls with inline error handling) and `src/types/` for domain models.
-- **Cross-folder reuse** is minimal by design: `public/` and `admin/` screens import
-  `common/Logo`, and the root app composes `common/Navbar`, `common/Footer` and the global
-  modals (`resident/BookingModal`, `resident/WhatsAppShareModal`) around `resident/` views.
-- Internal composition examples: `resident/ServiceCatalog` renders `resident/ServiceCard`;
-  `resident/MyBookingsView` renders `resident/StatusTracker`; `admin/AdminDashboard` renders
-  every other `admin/*` manager by section; `admin/CampaignsManager` and
-  `admin/ApartmentsManager` both drill into `admin/CampaignDetail`.
-- Styling is Tailwind CSS 4 classes only (imported once in `src/index.css`); animation uses
-  the `motion/react` package and icons come from `lucide-react`.
+- **Rendered by** `src/App.tsx`, which classifies the URL via `src/lib/router.ts`.
+- **Styling:** Tailwind CSS 4 with CSS variables defined in `src/index.css`.
+- **Icons & Motion:** `lucide-react` for stroke icons and `motion/react` for layout and reveal animations.

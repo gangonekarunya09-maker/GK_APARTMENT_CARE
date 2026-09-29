@@ -1,14 +1,13 @@
 # GK Apartment Care — Hyper-Local Community Services
 
-Community-first home & auto care platform for gated communities in Hyderabad. Residents book
-verified services at community prices, unlock **bulk Sunday discounts** through group-buying
-campaigns, and share WhatsApp campaign links. Operators run everything from an admin portal.
+Community-first home & auto care platform for gated communities in Hyderabad. Residents access verified doorstep services at exclusive community bulk prices, join **Sunday bulk demand pools** through group-buying campaigns, track live order status with gate-pass clearance, and share WhatsApp campaign links. Operators manage communities, campaigns, service providers, and bookings from an integrated admin operations dashboard.
 
 ## Tech Stack
 
 | Layer      | Technology |
 |------------|------------|
-| UI         | React 19, TypeScript, Tailwind CSS 4 (via `@tailwindcss/vite`), Motion animations, lucide-react icons |
+| UI         | React 19, TypeScript, Tailwind CSS 4 (via `@import "tailwindcss"` in `src/index.css`), Motion (`motion/react`), lucide-react icons |
+| Design     | Editorial design system: warm neutral token palette (`--bg: #FAF8F5`, `--surface: #FFFFFF`, `--surface-alt: #F0EDE7`, `--ink: #111111`, `--line: #E4E0D8`, `--accent: #2596be`), tight-tracked display typography, 24px card radius, hairline borders, and full-pill action buttons |
 | Build      | Vite 8 (`vite.config.ts`), deployed on Vercel (`vercel.json` SPA rewrites) |
 | Backend    | Supabase (Postgres + Auth + Realtime) — `@supabase/supabase-js` |
 | State      | Single React Context (`src/context/AppContext.tsx`); **Supabase is the single source of truth** (demo mode keeps in-memory seeds only — no localStorage persistence of app data) |
@@ -24,29 +23,25 @@ npm run lint     # TypeScript check (tsc --noEmit)
 
 Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
 
-- **With env vars set** — the app loads everything from Supabase and every mutation writes to
-  Postgres, guarded by the secure RLS policies in `supabase/schema.sql`.
-- **Without env vars** — the app still runs in a local demo mode backed by the (empty) seed
-  arrays in `src/data/mockData.ts`, held in memory only; changes are not persisted anywhere.
-  Admin login and the `/admin` dashboard require Supabase and are blocked without it.
+- **With env vars set** — the app loads live data from Supabase and every mutation writes to Postgres, guarded by secure RLS policies in `supabase/schema.sql`.
+- **Without env vars** — the app runs in a local demo mode backed by in-memory collections; admin dashboard and login require Supabase.
 
-The first-run backend checklist lives in `supabase/README.md`: apply `supabase/schema.sql`,
-then promote your operator account with `SELECT public.add_admin('<auth-user-uuid>');`.
+The first-run backend checklist lives in `supabase/README.md`: apply `supabase/schema.sql`, then promote your operator account with `SELECT public.add_admin('<auth-user-uuid>');`.
 
 ## Folder Map
 
 ```
-├── index.html               Vite entry HTML (loads /src/main.tsx)
+├── index.html               Vite entry HTML (loads Google fonts & /src/main.tsx)
 ├── vite.config.ts           Build config, @/ path alias, HMR flags
 ├── vercel.json              Vercel deployment: SPA rewrite "/(.*)" → /index.html
-│                            (keeps /c/... and /campaign/... deep links working on refresh)
-├── supabase-schema.sql      Copy of the DB schema (run supabase/schema.sql instead)
+├── supabase-schema.sql      Copy of the DB schema
 ├── src/                     Application source → see src/README.md
-│   ├── components/          All React UI → see src/components/README.md
-│   │   ├── admin/           Operator dashboard (12 managers) → admin/README.md
-│   │   ├── common/          Navbar / Footer / Logo → common/README.md
-│   │   ├── public/          Anonymous link pages (scoped data) → public/README.md
-│   │   └── resident/        Resident storefront & flows → resident/README.md
+│   ├── components/          All React UI components → see src/components/README.md
+│   │   ├── admin/           Operator dashboard (12 resource managers) → admin/README.md
+│   │   ├── common/          Navbar / PromoBar / Footer / Logo → common/README.md
+│   │   ├── public/          Anonymous link pages (scoped community portals) → public/README.md
+│   │   ├── resident/        Resident storefront & section rhythm → resident/README.md
+│   │   └── ui/              Reusable design system primitives (Button, Badge, Marquee, etc.) → ui/README.md
 │   ├── context/             Global state store (AppContext) → context/README.md
 │   ├── data/                In-memory demo seeds → data/README.md
 │   ├── lib/                 Router, ID/token generators, Supabase client → lib/README.md
@@ -54,77 +49,52 @@ then promote your operator account with `SELECT public.add_admin('<auth-user-uui
 └── supabase/                SQL schema (secure RLS v2) → supabase/README.md
 ```
 
-## How the Folders Connect
-
-The dependency flow is strictly one-directional — `components` never import each other across
-feature folders except for `common`:
+## How the Architecture Connects
 
 ```
-              ┌─────────────────────────────────────────────┐
-              │  src/main.tsx → src/App.tsx                 │
-              │  (entry; composes views from a route match) │
-              └──┬──────────────────────────┬───────────────┘
-                 │ resolveRoute()           │ wraps everything in AppProvider
+              ┌─────────────────────────────────────────────────────────────┐
+              │  src/main.tsx → src/App.tsx                                 │
+              │  (entry; classifies URLs & composes views from router)      │
+              └──┬──────────────────────────┬───────────────────────────────┘
+                 │ resolveRoute()           │ wraps tree in AppProvider
                  ▼                          ▼
         ┌────────────────┐        ┌──────────────────────────────┐
         │ src/lib/router │        │     src/context/AppContext   │
         └────────────────┘        │ (single source of truth for  │
-                                  │  app data & auth state)      │
+                                  │  app data, auth, & modals)   │
                                   └──┬──────────┬──────────┬─────┘
                           reads/writes│          │ maps rows│ seeds (demo mode)
                                       ▼          ▼          ▼
                      src/lib/supabase.ts  src/types/index.ts  src/data/mockData.ts
                                       ▲
-                                      │  SQL mirrors these tables
+                                      │  SQL mirrors domain entities
                             supabase/schema.sql
 ```
 
-* **`src/lib/router.ts`** is the URL router: a pure `resolveRoute(pathname, search)` that
-  classifies every URL as `campaign` / `community` / `admin` / `resident` (plus `isAdminPath`).
-  `src/App.tsx` consumes the match and renders exactly one top-level view.
-* **`src/App.tsx`** composes views from the route match: campaign links →
-  `public/PublicCampaignPage`, community portal links → `public/CommunityCustomerPortal`,
-  `/admin*` → `admin/AdminDashboard` (or `AdminLogin`), otherwise the resident storefront.
-  Campaign and portal routes load **only the rows they need** (scoped Supabase queries) and
-  render shared loading / error / retry panels instead of blank screens.
-* **`src/context/AppContext.tsx`** is imported by every screen and manager via `useApp()`.
-  It owns the nine data collections, awaitable mutations (`MutationResult` with optimistic
-  rollback), Supabase-only admin auth, load status (`dataStatus` / `reloadAll`), and a
-  debounced Realtime subscription scoped to the collections the app actually displays.
-* **`src/lib/supabase.ts`** is the only file that touches the Supabase SDK; it validates env
-  config (`isSupabaseConfigured`, `SUPABASE_CONFIG_ERROR`) and holds the
-  snake_case↔camelCase row mappers. `src/lib/ids.ts` provides UUID + unambiguous share-token
-  generation used by the context and admin managers.
-* **`src/types/index.ts`** defines the domain interfaces every other folder imports.
-* **`src/data/mockData.ts`** provides the empty seed arrays used only for the in-memory demo
-  mode when Supabase is not configured.
-* **`supabase/schema.sql`** is the SQL mirror of `src/types`: one table per interface, with
-  the **secure RLS v2** model (anon read-only catalog + insert-only forms; admin rights
-  gated server-side by `admin_users` / `is_admin()`), an atomic
-  `increment_campaign_demand` RPC, and a realtime publication that triggers context reloads.
+* **`src/lib/router.ts`** is the URL router: a pure `resolveRoute(pathname, search)` classifying every URL as `campaign` / `community` / `admin` / `resident` (plus `isAdminPath`).
+* **`src/App.tsx`** handles top-level view composition:
+  - **Public Campaign Links (`/campaign/:token`, `/book/:token`, `?token=`)** → `public/PublicCampaignPage`
+  - **Resident Community Portals (`/c/:slug/:token`, `/c/:slug`)** → `public/CommunityCustomerPortal` (scoped queries; includes tabbed **Services & Bulk Pools** and **Track Orders & Bookings** timeline)
+  - **Admin Operations Portal (`/admin*`)** → `admin/AdminLogin` or `admin/AdminDashboard`
+  - **Public Homepage (`/`)** → Composed of `PromoBar`, `Navbar`, the complete resident section rhythm (`Hero`, `StepsSection`, `ServicesMarquee`, `ServiceCatalog`, `ComparisonSection`, `NetworkSection`, `AssociationTrustSection`, `FAQSection`, `ClosingCTA`), and `Footer`.
+* **`src/components/ui/`** contains reusable design tokens and primitive components:
+  - `Button`: Pill button supporting `primary`, `secondary`, `inverse`, `accent`, and `link` variants.
+  - `Badge`: Pill badge labels for status indicators and society metadata.
+  - `Section`: Container enforcing 1280px max-width, responsive gutters, and alternating surface backgrounds.
+  - `Marquee`: Continuous looping marquee with pause-on-hover, accessible controls, and `prefers-reduced-motion`.
+  - `StatCard`: Large numeral display cards.
+  - `Accordion`: Single-open FAQ accordion with rotating indicators and hairline dividers.
+* **`src/context/AppContext.tsx`** is the central state store: owns the 9 data collections, optimistic awaitable `MutationResult` methods, admin session state, and debounced Supabase Realtime subscriptions.
+* **`src/lib/supabase.ts`** encapsulates Supabase SDK client initialization, environment validation (`isSupabaseConfigured`), and camelCase↔snake_case row mappers.
 
-Cross-component imports: `public` and `admin` screens reuse `common/Logo`; the root `App.tsx`
-composes `common` (Navbar/Footer) with `resident` views and global modals
-(`BookingModal`, `WhatsAppShareModal`).
+## Resident Community Portal (`/c/:slug/:token`)
+
+The resident service portal serves individual gated communities:
+1. **Services & Bulk Pools Tab:** Displays live community campaigns, standard vs. doorstep bulk rates, minimum demand thresholds, and one-click "Join Community Bulk Pool" interest registration.
+2. **Track Orders & Bookings Tab:** Allows residents to filter by flat number, name, phone, or booking number, and view live status badges alongside a 4-step progress timeline (`Received` → `Vendor Assigned` → `In Progress` → `Completed`), gate pass verification with society security apps (e.g. MyGate), and direct WhatsApp support links.
 
 ## Deployment Notes (Vercel)
 
-- `vercel.json` uses the **standard Vercel SPA rewrite** (`"source": "/(.*)"` → `/index.html`).
-  Vercel checks the filesystem **before** applying rewrites, so `/assets/*` bundles and
-  `dist/vercel.json` are still served as real files; every non-file path (`/c/:slug/:token`,
-  `/campaign/:token`, `/admin`, …) falls back to `index.html` — deep links never 404.
-  Do **not** replace this with regex lookaheads (e.g. `/((?!assets/).*)`): Vercel's
-  path-to-regexp router silently matches nothing for that form, and every deep link
-  returns the edge `X-Vercel-Error: NOT_FOUND` while `/` keeps working — exactly the
-  production incident this config fixes.
-- The build **also emits `dist/vercel.json`** (via the `emitVercelConfig` plugin in
-  `vite.config.ts`), so deployments made from the build output alone (static/CLI uploads)
-  carry the SPA rewrite with them. Never deploy a bare `dist/` without it: unknown paths
-  would hit Vercel's edge 404 (`X-Vercel-Error: NOT_FOUND`) before React loads.
-  Note: `vite dev` and `vite preview` apply their own SPA fallback, so this class of bug
-  can only be observed on a real Vercel deployment — test deep links there after any
-  routing-config change.
-- Communities are **DB-driven**: any `/c/:communitySlug/:token` resolves at runtime against
-  the `apartments` table. No per-community Vercel routes or config are ever needed.
-- Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` must be set in the Vercel project;
-  a placeholder/missing value surfaces as a config-error panel, not a blank page.
+- `vercel.json` uses the standard Vercel SPA rewrite (`"source": "/(.*)"` → `/index.html`), ensuring deep links (`/c/:slug/:token`, `/campaign/:token`, `/admin`) resolve smoothly on direct navigation and refresh.
+- The build outputs `dist/vercel.json` automatically via the Vite config plugin.
+- Communities are database-driven: any `/c/:communitySlug/:token` resolves at runtime against the `apartments` table in Supabase.
