@@ -2,11 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Logo } from './Logo';
 import { Button } from '../ui/Button';
-import { Sparkles, Shield, Building2, Calendar, Menu, X, ArrowRight, Phone } from 'lucide-react';
+import {
+  Sparkles,
+  Building2,
+  Menu,
+  X,
+  ArrowRight,
+  Phone,
+  Info,
+  HelpCircle,
+  Mail,
+  Shield,
+  Layers,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Navbar: React.FC = () => {
-  const { residentTab, setResidentTab, bookings, setBookingModalService, services } = useApp();
+  const { currentPath, navigate } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -18,16 +30,15 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const activeBookingsCount = bookings.filter(
-    b => b.status === 'received' || b.status === 'vendor_assigned' || b.status === 'in_progress'
-  ).length;
+  const handleNav = (path: string) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  const handleBookClick = () => {
-    setResidentTab('services');
-    const featured = services.find(s => s.id === 'srv-deep-home-clean') || services[0];
-    if (featured) {
-      setBookingModalService(featured);
-    }
+  const isCurrent = (path: string) => {
+    if (path === '/' && (currentPath === '/' || currentPath === '')) return true;
+    return currentPath === path;
   };
 
   return (
@@ -41,80 +52,92 @@ export const Navbar: React.FC = () => {
       <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-10 h-18 sm:h-20 flex items-center justify-between gap-6">
         {/* Left: Brand Logo */}
         <button
-          onClick={() => {
-            setResidentTab('services');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
+          onClick={() => handleNav('/')}
           className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] rounded-lg transition-opacity hover:opacity-90 cursor-pointer shrink-0"
           aria-label="GK Apartment Care Home"
         >
           <Logo size="md" />
         </button>
 
-        {/* Center: Main Editorial Links */}
-        <nav className="hidden lg:flex items-center gap-8 text-[15px] font-medium text-[#5C5A56]">
+        {/* Center: Main Public Navigation Links */}
+        <nav className="hidden lg:flex items-center gap-7 text-[14px] font-medium text-[#5C5A56]">
           <button
-            onClick={() => {
-              setResidentTab('services');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleNav('/')}
             className={`transition-colors whitespace-nowrap cursor-pointer hover:text-[#111111] py-1 ${
-              residentTab === 'services'
+              isCurrent('/')
                 ? 'text-[#111111] font-semibold underline underline-offset-8 decoration-2 decoration-[#2596be]'
                 : ''
             }`}
           >
-            Services Catalog
+            Home
           </button>
 
           <button
-            onClick={() => {
-              setResidentTab('rwa');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleNav('/about')}
             className={`transition-colors whitespace-nowrap cursor-pointer hover:text-[#111111] py-1 ${
-              residentTab === 'rwa'
+              isCurrent('/about')
                 ? 'text-[#111111] font-semibold underline underline-offset-8 decoration-2 decoration-[#2596be]'
                 : ''
             }`}
           >
-            RWA Society Partners
+            About
           </button>
 
           <button
-            onClick={() => {
-              setResidentTab('vendor');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleNav('/how-it-works')}
             className={`transition-colors whitespace-nowrap cursor-pointer hover:text-[#111111] py-1 ${
-              residentTab === 'vendor'
+              isCurrent('/how-it-works')
                 ? 'text-[#111111] font-semibold underline underline-offset-8 decoration-2 decoration-[#2596be]'
                 : ''
             }`}
           >
-            Service Providers
+            How It Works
+          </button>
+
+          <button
+            onClick={() => handleNav('/services')}
+            className={`transition-colors whitespace-nowrap cursor-pointer hover:text-[#111111] py-1 ${
+              isCurrent('/services')
+                ? 'text-[#111111] font-semibold underline underline-offset-8 decoration-2 decoration-[#2596be]'
+                : ''
+            }`}
+          >
+            Services
+          </button>
+
+          <button
+            onClick={() => handleNav('/contact')}
+            className={`transition-colors whitespace-nowrap cursor-pointer hover:text-[#111111] py-1 ${
+              isCurrent('/contact')
+                ? 'text-[#111111] font-semibold underline underline-offset-8 decoration-2 decoration-[#2596be]'
+                : ''
+            }`}
+          >
+            Contact
           </button>
         </nav>
 
         {/* Right: Actions Cluster */}
         <div className="flex items-center gap-3">
           <a
-            href="tel:+919494335848"
+            href="https://wa.me/919494335848?text=Hi%20GK%20Apartment%20Care!"
+            target="_blank"
+            rel="noopener noreferrer"
             className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-[#5C5A56] hover:text-[#111111] transition-colors py-2 px-3 rounded-full hover:bg-[#F0EDE7]"
-            title="Helpline"
+            title="Helpline / WhatsApp"
           >
             <Phone className="w-3.5 h-3.5 text-[#2596be]" />
             <span>+91 94943 35848</span>
           </a>
 
-          {/* Primary Viewport CTA Pill */}
+          {/* Primary Action CTA Pill */}
           <Button
             variant="primary"
             size="sm"
-            onClick={handleBookClick}
+            onClick={() => handleNav('/services')}
             className="hidden md:inline-flex"
           >
-            Book a Service
+            Explore Services
           </Button>
 
           {/* Mobile Hamburger Menu Toggle */}
@@ -140,70 +163,97 @@ export const Navbar: React.FC = () => {
           >
             <div className="flex flex-col gap-1.5">
               <button
-                onClick={() => {
-                  setResidentTab('services');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => handleNav('/')}
                 className={`flex items-center justify-between p-3 rounded-2xl text-sm font-medium transition-colors ${
-                  residentTab === 'services'
+                  isCurrent('/')
                     ? 'bg-white text-[#111111] font-bold border border-[#E4E0D8]'
                     : 'text-[#5C5A56] hover:bg-[#F0EDE7]'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-[#2596be]" />
-                  <span>Services Catalog</span>
-                </div>
+                <span>Home</span>
                 <ArrowRight className="w-4 h-4 text-[#5C5A56]" />
               </button>
 
               <button
-                onClick={() => {
-                  setResidentTab('rwa');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => handleNav('/about')}
                 className={`flex items-center justify-between p-3 rounded-2xl text-sm font-medium transition-colors ${
-                  residentTab === 'rwa'
+                  isCurrent('/about')
                     ? 'bg-white text-[#111111] font-bold border border-[#E4E0D8]'
                     : 'text-[#5C5A56] hover:bg-[#F0EDE7]'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Building2 className="w-4 h-4 text-[#2596be]" />
-                  <span>RWA Society Partnerships</span>
-                </div>
+                <span>About</span>
                 <ArrowRight className="w-4 h-4 text-[#5C5A56]" />
               </button>
 
               <button
-                onClick={() => {
-                  setResidentTab('vendor');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => handleNav('/how-it-works')}
                 className={`flex items-center justify-between p-3 rounded-2xl text-sm font-medium transition-colors ${
-                  residentTab === 'vendor'
+                  isCurrent('/how-it-works')
                     ? 'bg-white text-[#111111] font-bold border border-[#E4E0D8]'
                     : 'text-[#5C5A56] hover:bg-[#F0EDE7]'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Shield className="w-4 h-4 text-[#2596be]" />
-                  <span>Become a Service Partner</span>
-                </div>
+                <span>How It Works</span>
                 <ArrowRight className="w-4 h-4 text-[#5C5A56]" />
               </button>
+
+              <button
+                onClick={() => handleNav('/services')}
+                className={`flex items-center justify-between p-3 rounded-2xl text-sm font-medium transition-colors ${
+                  isCurrent('/services')
+                    ? 'bg-white text-[#111111] font-bold border border-[#E4E0D8]'
+                    : 'text-[#5C5A56] hover:bg-[#F0EDE7]'
+                }`}
+              >
+                <span>Services Catalog</span>
+                <ArrowRight className="w-4 h-4 text-[#5C5A56]" />
+              </button>
+
+              <button
+                onClick={() => handleNav('/contact')}
+                className={`flex items-center justify-between p-3 rounded-2xl text-sm font-medium transition-colors ${
+                  isCurrent('/contact')
+                    ? 'bg-white text-[#111111] font-bold border border-[#E4E0D8]'
+                    : 'text-[#5C5A56] hover:bg-[#F0EDE7]'
+                }`}
+              >
+                <span>Contact Operations</span>
+                <ArrowRight className="w-4 h-4 text-[#5C5A56]" />
+              </button>
+
+              <div className="pt-2 border-t border-[#E4E0D8] space-y-1">
+                <button
+                  onClick={() => handleNav('/rwa')}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-medium text-[#5C5A56] hover:bg-[#F0EDE7] w-full"
+                >
+                  <span className="flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-[#2596be]" />
+                    <span>RWA Society Partnerships</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#5C5A56]" />
+                </button>
+
+                <button
+                  onClick={() => handleNav('/vendor')}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-medium text-[#5C5A56] hover:bg-[#F0EDE7] w-full"
+                >
+                  <span className="flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-[#2596be]" />
+                    <span>Service Providers</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#5C5A56]" />
+                </button>
+              </div>
             </div>
 
             <div className="pt-2">
               <Button
                 variant="primary"
                 fullWidth
-                onClick={() => {
-                  handleBookClick();
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => handleNav('/services')}
               >
-                Book a Service
+                Explore Services
               </Button>
             </div>
           </motion.div>

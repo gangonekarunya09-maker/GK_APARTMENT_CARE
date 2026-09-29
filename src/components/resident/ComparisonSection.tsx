@@ -5,46 +5,39 @@ import { Check, Minus, ShieldCheck, Sparkles } from 'lucide-react';
 export const ComparisonSection: React.FC = () => {
   const features = [
     {
-      label: 'Staff Verification & Badging',
-      others: 'Unverified / Random workers',
-      gk: '100% Police & Aadhaar Verified',
-      gkHighlight: true,
+      label: 'Staff Badging & Pre-Clearance',
+      others: 'Unvetted individual contractors',
+      gk: 'Background-Checked & Uniformed Personnel',
     },
     {
-      label: 'Gate Security & Pass Clearance',
-      others: 'Security hold-ups at entry',
-      gk: 'Pre-Approved Digital Batch Passes',
-      gkHighlight: true,
+      label: 'Gate Security Synchronization',
+      others: 'Security hold-ups & manual calls',
+      gk: 'Advance Roster via Security Apps (MyGate)',
     },
     {
       label: 'Quiet Hours (1:00 – 2:30 PM)',
-      others: 'Ignored / Corridor noise',
-      gk: 'Strictly Enforced & Observed',
-      gkHighlight: true,
+      others: 'Frequent corridor & drilling noise',
+      gk: 'Strictly Enforced Afternoon Pause',
     },
     {
-      label: 'Pricing Structure',
-      others: 'Arbitrary high individual quote',
-      gk: 'Guaranteed 20%–35% Bulk Discount',
-      gkHighlight: true,
+      label: 'Community Batch Coordination',
+      others: 'Individual random appointments',
+      gk: 'Organized Apartment Service Campaigns',
     },
     {
       label: 'Payment Model',
-      others: 'Advance demand or cash only',
-      gk: 'Pay After Service Satisfaction',
-      gkHighlight: true,
+      others: 'Advance deposit or arbitrary cash',
+      gk: 'Zero Deposit · Pay on Inspection',
     },
     {
-      label: 'Society RWA Coordination',
-      others: 'None (ad-hoc entry)',
-      gk: 'Official Association Partnership',
-      gkHighlight: true,
+      label: 'Society RWA Alignment',
+      others: 'None (ad-hoc residential entry)',
+      gk: 'Coordinated with Association Bylaws',
     },
     {
-      label: 'Damage & Service Warranty',
-      others: 'Zero accountability',
-      gk: '100% Re-service Guarantee',
-      gkHighlight: true,
+      label: 'Service Quality Guarantee',
+      others: 'Difficult to hold contractors accountable',
+      gk: 'Complimentary Rework within 24 Hours',
     },
   ];
 
@@ -54,13 +47,13 @@ export const ComparisonSection: React.FC = () => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <span className="text-xs uppercase font-semibold tracking-wider text-[#2596be]">
-            Why Hyderabad Gated Communities Choose Us
+            Why Communities Choose GK Apartment Care
           </span>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-medium text-[#111111] leading-[1.08] tracking-tight">
-            The community standard.
+            Designed for gated apartment life.
           </h2>
           <p className="text-sm sm:text-base text-[#5C5A56]">
-            Traditional on-demand apps flood towers with unvetted independent contractors. GK organizes unified society batches.
+            Instead of random contractors entering your tower at all hours, GK coordinates organized community batches with pre-cleared access and quiet hour compliance.
           </p>
         </div>
 
@@ -68,10 +61,10 @@ export const ComparisonSection: React.FC = () => {
         <div className="bg-white rounded-[24px] border border-[#E4E0D8] overflow-hidden shadow-2xs">
           <div className="grid grid-cols-12 text-left border-b border-[#E4E0D8] bg-[#FAF8F5] p-5 sm:p-6 text-xs sm:text-sm font-semibold text-[#111111]">
             <div className="col-span-5 sm:col-span-6 text-[#5C5A56] uppercase tracking-wider text-[11px]">
-              Service Standards
+              Operational Standard
             </div>
             <div className="col-span-3 sm:col-span-3 text-[#5C5A56] uppercase tracking-wider text-[11px]">
-              Random Outside Vendors
+              Unorganized Outside Vendors
             </div>
             <div className="col-span-4 sm:col-span-3 text-[#111111] uppercase tracking-wider text-[11px] flex items-center gap-1 font-bold text-[#2596be]">
               <Sparkles className="w-3.5 h-3.5" />

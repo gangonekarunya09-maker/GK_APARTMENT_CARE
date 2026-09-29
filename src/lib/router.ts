@@ -10,20 +10,36 @@
  *      ?c=, ?community= (token or slug)
  *   3. Admin URLs       → AdminLogin / AdminDashboard
  *      /admin, /admin/<anything>, ?admin=true
- *   4. Everything else  → Resident storefront
- *
- * Campaign tokens are matched against the `campaigns` table only, and community
- * slugs/tokens against the `apartments` table only — a portal token can never be
- * interpreted as a campaign token.
+ *   4. Public Pages     → Informational & Policy Pages
+ *      /about, /how-it-works, /services, /contact,
+ *      /privacy-policy, /terms, /refund-policy, /payment-info,
+ *      /rwa, /vendor
+ *   5. Homepage (/)     → Generic Home Storefront
  */
 
-export type RouteKind = 'campaign' | 'community' | 'admin' | 'resident';
+export type PublicPageName =
+  | 'home'
+  | 'about'
+  | 'how-it-works'
+  | 'services'
+  | 'contact'
+  | 'privacy-policy'
+  | 'terms'
+  | 'refund-policy'
+  | 'payment-info'
+  | 'rwa'
+  | 'vendor';
+
+export type RouteKind = 'campaign' | 'community' | 'admin' | 'page';
 
 export interface RouteMatch {
   kind: RouteKind;
 
-  /** Path form that matched, e.g. 'campaign-token' | 'community-slug-token'. */
+  /** Path form that matched, e.g. 'campaign-token' | 'community-slug-token' | 'page-about'. */
   via: string;
+
+  /** For public page routes: the normalized page identifier. */
+  page: PublicPageName;
 
   /** For campaign routes: the share token (never null for `kind === 'campaign'`). */
   campaignToken: string | null;
@@ -70,6 +86,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'campaign',
       via: 'query-token',
+      page: 'home',
       campaignToken: qpCampaign,
       communitySlug: null,
       communityToken: null,
@@ -83,6 +100,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'community',
       via: 'query-community',
+      page: 'home',
       campaignToken: null,
       communitySlug: null,
       communityToken: qpCommunity,
@@ -100,6 +118,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'campaign',
       via: 'path-community-service-token',
+      page: 'home',
       campaignToken: fourth,
       communitySlug: second,
       communityToken: null,
@@ -111,6 +130,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'campaign',
       via: first === 'book' ? 'path-book' : 'path-campaign',
+      page: 'home',
       campaignToken: second,
       communitySlug: null,
       communityToken: null,
@@ -124,6 +144,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
       return {
         kind: 'community',
         via: 'path-c-slug-token',
+        page: 'home',
         campaignToken: null,
         communitySlug: second,
         communityToken: third,
@@ -133,6 +154,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'community',
       via: 'path-c-slug',
+      page: 'home',
       campaignToken: null,
       communitySlug: second,
       communityToken: null,
@@ -145,6 +167,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'community',
       via: 'path-community-portal',
+      page: 'home',
       campaignToken: null,
       communitySlug: null,
       communityToken: null,
@@ -157,6 +180,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'admin',
       via: 'path-admin',
+      page: 'home',
       campaignToken: null,
       communitySlug: null,
       communityToken: null,
@@ -168,6 +192,7 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     return {
       kind: 'admin',
       via: 'query-admin',
+      page: 'home',
       campaignToken: null,
       communitySlug: null,
       communityToken: null,
@@ -175,10 +200,134 @@ export function resolveRoute(pathname: string, search: string): RouteMatch {
     };
   }
 
-  // ---------- Resident (default) ----------
+  // ---------- Public Informational & Policy Pages ----------
+  const cleanPath = (first || '').toLowerCase();
+  
+  if (cleanPath === 'about') {
+    return {
+      kind: 'page',
+      via: 'path-about',
+      page: 'about',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'how-it-works' || cleanPath === 'howitworks') {
+    return {
+      kind: 'page',
+      via: 'path-how-it-works',
+      page: 'how-it-works',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'services') {
+    return {
+      kind: 'page',
+      via: 'path-services',
+      page: 'services',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'contact' || cleanPath === 'contact-us') {
+    return {
+      kind: 'page',
+      via: 'path-contact',
+      page: 'contact',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'privacy-policy' || cleanPath === 'privacy') {
+    return {
+      kind: 'page',
+      via: 'path-privacy-policy',
+      page: 'privacy-policy',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'terms' || cleanPath === 'terms-and-conditions' || cleanPath === 'terms-of-service') {
+    return {
+      kind: 'page',
+      via: 'path-terms',
+      page: 'terms',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'refund-policy' || cleanPath === 'cancellation-policy' || cleanPath === 'cancellation-and-refund') {
+    return {
+      kind: 'page',
+      via: 'path-refund-policy',
+      page: 'refund-policy',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'payment-info' || cleanPath === 'payments') {
+    return {
+      kind: 'page',
+      via: 'path-payment-info',
+      page: 'payment-info',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'rwa' || cleanPath === 'rwa-partnerships') {
+    return {
+      kind: 'page',
+      via: 'path-rwa',
+      page: 'rwa',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  if (cleanPath === 'vendor' || cleanPath === 'service-providers' || cleanPath === 'partners') {
+    return {
+      kind: 'page',
+      via: 'path-vendor',
+      page: 'vendor',
+      campaignToken: null,
+      communitySlug: null,
+      communityToken: null,
+      communityIdOrSlug: null,
+    };
+  }
+
+  // ---------- Generic Home Storefront (default: /) ----------
   return {
-    kind: 'resident',
-    via: 'default',
+    kind: 'page',
+    via: 'default-home',
+    page: 'home',
     campaignToken: null,
     communitySlug: null,
     communityToken: null,

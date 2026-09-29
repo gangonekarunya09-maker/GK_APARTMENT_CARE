@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
-import { resolveRoute, isAdminPath } from './lib/router';
+import { resolveRoute, isAdminPath, PublicPageName } from './lib/router';
 import { Navbar } from './components/common/Navbar';
 import { PromoBar } from './components/common/PromoBar';
 import { Hero } from './components/resident/Hero';
@@ -12,8 +12,6 @@ import { NetworkSection } from './components/resident/NetworkSection';
 import { AssociationTrustSection } from './components/resident/AssociationTrustSection';
 import { FAQSection } from './components/resident/FAQSection';
 import { ClosingCTA } from './components/resident/ClosingCTA';
-import { TrustSection } from './components/resident/TrustSection';
-import { MyBookingsView } from './components/resident/MyBookingsView';
 import { RWAPartnershipsView } from './components/resident/RWAPartnershipsView';
 import { VendorOnboardingView } from './components/resident/VendorOnboardingView';
 import { BookingModal } from './components/resident/BookingModal';
@@ -23,6 +21,14 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { PublicCampaignPage } from './components/public/PublicCampaignPage';
 import { CommunityCustomerPortal } from './components/public/CommunityCustomerPortal';
+import { AboutPage } from './components/public/AboutPage';
+import { HowItWorksPage } from './components/public/HowItWorksPage';
+import { ServicesPage } from './components/public/ServicesPage';
+import { ContactPage } from './components/public/ContactPage';
+import { PrivacyPolicyPage } from './components/public/PrivacyPolicyPage';
+import { TermsPage } from './components/public/TermsPage';
+import { RefundPolicyPage } from './components/public/RefundPolicyPage';
+import { PaymentInfoPage } from './components/public/PaymentInfoPage';
 
 /* ------------------------------------------------------------------ */
 /* Public route data loader                                            */
@@ -42,7 +48,6 @@ interface LoadedPortal {
 
 /**
  * Full-screen status panel shared by all public routes (loading / error / demo banner).
- * Kept intentionally simple and styled like the existing app.
  */
 const StatusPanel: React.FC<{
   tone: 'loading' | 'error' | 'warn';
@@ -54,21 +59,21 @@ const StatusPanel: React.FC<{
   const accent =
     tone === 'error' ? '#DC2626' : tone === 'warn' ? '#F59E0B' : '#2596be';
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-3xl border border-[#E5E7EB] text-center max-w-sm w-full space-y-3 shadow-xs">
+    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-3xl border border-[#E4E0D8] text-center max-w-sm w-full space-y-3 shadow-2xs">
         <div
           className="w-10 h-10 rounded-2xl mx-auto flex items-center justify-center text-white text-lg font-bold"
           style={{ backgroundColor: accent }}
         >
           {tone === 'loading' ? '…' : tone === 'error' ? '!' : 'i'}
         </div>
-        <p className="text-sm font-bold text-[#142326]">{title}</p>
-        <p className="text-xs text-[#667085] leading-relaxed">{message}</p>
+        <p className="text-sm font-bold text-[#111111]">{title}</p>
+        <p className="text-xs text-[#5C5A56] leading-relaxed">{message}</p>
         <div className="flex flex-col gap-2 pt-1">
           {onRetry && (
             <button
               onClick={onRetry}
-              className="w-full py-2.5 bg-[#2596be] hover:bg-[#1e7ca0] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              className="w-full py-2.5 bg-[#111111] hover:bg-[#2596be] text-white text-xs font-bold rounded-full transition-colors cursor-pointer"
             >
               Try Again
             </button>
@@ -76,7 +81,7 @@ const StatusPanel: React.FC<{
           {onHome && (
             <button
               onClick={onHome}
-              className="w-full py-2.5 bg-white border border-[#E5E7EB] hover:bg-[#F8F9FA] text-[#142326] text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              className="w-full py-2.5 bg-white border border-[#E4E0D8] hover:bg-[#FAF8F5] text-[#111111] text-xs font-bold rounded-full transition-colors cursor-pointer"
             >
               Go to Homepage
             </button>
@@ -114,7 +119,6 @@ const CampaignRoute: React.FC<{ token: string }> = ({ token }) => {
         const { supabase, isSupabaseConfigured, mapApartmentFromDb, mapServiceFromDb } =
           await import('./lib/supabase');
         if (supabase && isSupabaseConfigured()) {
-          // Scoped fetches: only the two rows this campaign page needs.
           const [{ data: aptRows }, { data: svcRows }] = await Promise.all([
             supabase.from('apartments').select('*').eq('id', campaign.apartmentId).limit(1),
             supabase.from('services').select('*').eq('id', campaign.serviceId).limit(1),
@@ -122,7 +126,6 @@ const CampaignRoute: React.FC<{ token: string }> = ({ token }) => {
           apartment = aptRows && aptRows.length > 0 ? mapApartmentFromDb(aptRows[0]) : null;
           service = svcRows && svcRows.length > 0 ? mapServiceFromDb(svcRows[0]) : null;
         } else {
-          // Demo mode: resolve from seeded/local collections.
           apartment = apartments.find(a => a.id === campaign.apartmentId) || null;
           service = services.find(s => s.id === campaign.serviceId) || null;
         }
@@ -198,7 +201,6 @@ const CommunityPortalRoute: React.FC<{
 
   React.useEffect(() => {
     if (!isLinkMode) {
-      // Resident "community" tab: use the already-loaded collections.
       setState({ status: 'ready', data: { apartment: null as any, campaigns: [], services: [] } });
       return;
     }
@@ -214,7 +216,6 @@ const CommunityPortalRoute: React.FC<{
       }
       const apartment = res.data;
 
-      // Scoped public fetches — only this community's campaigns + their services.
       let communityCampaigns: import('./types').Campaign[] = [];
       let portalServices: import('./types').Service[] = [];
 
@@ -264,7 +265,6 @@ const CommunityPortalRoute: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, token, isLinkMode, attempt]);
 
-  // Resident tab mode: derive from global collections for the selected community.
   const tabApartment = useApp().selectedApartment;
   if (!isLinkMode) {
     if (!tabApartment) {
@@ -321,7 +321,7 @@ const CommunityPortalRoute: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
-/* Router                                                              */
+/* Router & Page Dispatcher                                           */
 /* ------------------------------------------------------------------ */
 
 const AppRouter: React.FC = () => {
@@ -330,13 +330,7 @@ const AppRouter: React.FC = () => {
     isAdminAuthenticated,
     isAdminReady,
     isBackendConnected,
-    dataStatus,
-    dataError,
-    reloadAll,
-    services,
-    setBookingModalService,
-    residentTab,
-    setResidentTab,
+    navigate,
   } = useApp();
 
   const route = useMemo(
@@ -348,6 +342,53 @@ const AppRouter: React.FC = () => {
     () => isAdminPath(currentPath, window.location.search),
     [currentPath]
   );
+
+  // Sync document title for SEO and user clarity
+  useEffect(() => {
+    if (admin.isAdmin) {
+      document.title = 'GK Apartment Care | Operator Operations Hub';
+    } else if (route.kind === 'campaign') {
+      document.title = 'GK Apartment Care | Community Service Campaign';
+    } else if (route.kind === 'community') {
+      document.title = 'GK Apartment Care | Resident Portal';
+    } else {
+      switch (route.page) {
+        case 'about':
+          document.title = 'About GK Apartment Care | Community Home & Auto Services';
+          break;
+        case 'how-it-works':
+          document.title = 'How It Works | GK Apartment Care Community Platform';
+          break;
+        case 'services':
+          document.title = 'Services Catalog | GK Apartment Care Hyderabad';
+          break;
+        case 'contact':
+          document.title = 'Contact Operations | GK Apartment Care';
+          break;
+        case 'privacy-policy':
+          document.title = 'Privacy Policy | GK Apartment Care';
+          break;
+        case 'terms':
+          document.title = 'Terms of Service | GK Apartment Care';
+          break;
+        case 'refund-policy':
+          document.title = 'Cancellation & Refund Policy | GK Apartment Care';
+          break;
+        case 'payment-info':
+          document.title = 'Payment & Billing Information | GK Apartment Care';
+          break;
+        case 'rwa':
+          document.title = 'RWA Society Partnerships | GK Apartment Care';
+          break;
+        case 'vendor':
+          document.title = 'Service Provider Onboarding | GK Apartment Care';
+          break;
+        default:
+          document.title = 'GK Apartment Care | Home Services for Your Community';
+          break;
+      }
+    }
+  }, [route, admin]);
 
   /* ---------------- Admin routes ---------------- */
   if (admin.isAdmin) {
@@ -383,7 +424,6 @@ const AppRouter: React.FC = () => {
 
   /* ---------------- Community portal routes ---------------- */
   if (route.kind === 'community') {
-    // Missing token with slug-only path is allowed (portal resolves by slug).
     if (!route.communitySlug && !route.communityToken && !route.communityIdOrSlug) {
       return (
         <StatusPanel
@@ -402,63 +442,69 @@ const AppRouter: React.FC = () => {
     );
   }
 
-  /* ---------------- General website (all / routes) ---------------- */
-  // `/` always shows the general GK Apartment Care website.
-  // No community selector, no community gate, no LandingPage.
-  // Community portal links (/c/:slug/:token) are routed above.
+  /* ---------------- Public Website & Pages ---------------- */
   const handleScrollToCatalog = () => {
-    setResidentTab('services');
-    setTimeout(() => {
-      const el = document.getElementById('services-catalog');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 50);
+    if (route.page !== 'home') {
+      navigate('/services');
+      return;
+    }
+    const el = document.getElementById('services-catalog');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/services');
+    }
   };
 
-  const handleBookNow = () => {
-    setResidentTab('services');
-    const featured = services.find(s => s.id === 'srv-car-wash') || services[0];
-    if (featured) {
-      setBookingModalService(featured);
-    }
+  const handleHowItWorks = () => {
+    navigate('/how-it-works');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePartnerRWA = () => {
+    navigate('/rwa');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#111111] flex flex-col antialiased selection:bg-[#2596be]/20 selection:text-[#111111]">
-      <PromoBar onExplore={handleScrollToCatalog} />
+      <PromoBar onExplore={() => navigate('/services')} />
       <Navbar />
 
       <main className="flex-1">
-        {residentTab === 'services' && (
+        {route.page === 'home' && (
           <>
             <Hero
               onExploreClick={handleScrollToCatalog}
-              onBookNowClick={handleBookNow}
+              onHowItWorksClick={handleHowItWorks}
             />
-            <StepsSection onExplore={handleScrollToCatalog} />
+            <StepsSection
+              onExplore={() => navigate('/services')}
+              onDetailedGuide={handleHowItWorks}
+            />
             <ServicesMarquee />
             <ServiceCatalog />
             <ComparisonSection />
-            <NetworkSection onExplore={handleScrollToCatalog} />
+            <NetworkSection onExplore={() => navigate('/services')} />
             <AssociationTrustSection />
             <FAQSection />
             <ClosingCTA
-              onBookNow={handleBookNow}
-              onExploreServices={handleScrollToCatalog}
-              onPartnerRWA={() => {
-                setResidentTab('rwa');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onExploreServices={() => navigate('/services')}
+              onPartnerRWA={handlePartnerRWA}
             />
           </>
         )}
 
-        {residentTab === 'my-bookings' && <MyBookingsView />}
-
-        {residentTab === 'rwa' && <RWAPartnershipsView />}
-
-        {residentTab === 'vendor' && <VendorOnboardingView />}
+        {route.page === 'about' && <AboutPage />}
+        {route.page === 'how-it-works' && <HowItWorksPage />}
+        {route.page === 'services' && <ServicesPage />}
+        {route.page === 'contact' && <ContactPage />}
+        {route.page === 'privacy-policy' && <PrivacyPolicyPage />}
+        {route.page === 'terms' && <TermsPage />}
+        {route.page === 'refund-policy' && <RefundPolicyPage />}
+        {route.page === 'payment-info' && <PaymentInfoPage />}
+        {route.page === 'rwa' && <RWAPartnershipsView />}
+        {route.page === 'vendor' && <VendorOnboardingView />}
       </main>
 
       <Footer />

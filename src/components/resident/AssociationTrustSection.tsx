@@ -1,32 +1,8 @@
 import React from 'react';
 import { Section } from '../ui/Section';
-import { Star, ShieldCheck, Moon, Building2, UserCheck, KeySquare, Sparkles } from 'lucide-react';
+import { ShieldCheck, Moon, Building2, UserCheck, KeySquare, Wrench, CheckCircle2 } from 'lucide-react';
 
 export const AssociationTrustSection: React.FC = () => {
-  const testimonials = [
-    {
-      quote:
-        'GK Apartment Care eliminated the chaotic crowd of random vendors at our main gate on weekends. The synchronized batches and strict 1:00 PM quiet hour discipline has made a huge difference to our residents.',
-      author: 'Rajeshwar V.',
-      role: 'RWA President, My Home Bhooja',
-      rating: 5,
-    },
-    {
-      quote:
-        'Our society bulk campaign booked 42 sofa extractions and car detailing sessions in one Sunday. Residents saved over 30% and the quality was top-notch with eco-friendly steam equipment.',
-      author: 'Sunita M.',
-      role: 'Management Committee, Aparna Serene Park',
-      rating: 5,
-    },
-    {
-      quote:
-        'Finally a service that understands apartment community bylaws. No loud drilling during afternoon rest hours, and every technician has a digital badge that checks out seamlessly with MyGate.',
-      author: 'Kalyan Chakravarthy',
-      role: 'Facility Lead, Jayabheri Silicon County',
-      rating: 5,
-    },
-  ];
-
   const protocols = [
     {
       icon: <Moon className="w-5 h-5 text-[#2596be]" />,
@@ -35,18 +11,18 @@ export const AssociationTrustSection: React.FC = () => {
     },
     {
       icon: <UserCheck className="w-5 h-5 text-[#2596be]" />,
-      title: 'Police & Aadhaar Clearance',
-      desc: '100% verified staff with official photo badges and company uniforms.',
+      title: 'Aadhaar & Background Clearance',
+      desc: 'Vetted personnel with company uniforms and digital identification badges.',
     },
     {
       icon: <KeySquare className="w-5 h-5 text-[#2596be]" />,
       title: 'Digital Gate Pre-Clearance',
-      desc: 'Seamless integration with MyGate, ApnaComplex, and security booths.',
+      desc: 'Coordinated entry passes synchronized with MyGate, ApnaComplex, and security teams.',
     },
     {
       icon: <ShieldCheck className="w-5 h-5 text-[#2596be]" />,
-      title: 'Doorstep Service Warranty',
-      desc: 'Complete peace of mind with 100% rework guarantee if not fully satisfied.',
+      title: 'Quality & Rework Guarantee',
+      desc: '24-hour complimentary re-service if any aspect fails to meet quality standards.',
     },
   ];
 
@@ -56,13 +32,13 @@ export const AssociationTrustSection: React.FC = () => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <span className="text-xs uppercase font-semibold tracking-wider text-[#2596be]">
-            Verified Community Trust
+            Operational Standards
           </span>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-medium text-[#111111] leading-[1.08] tracking-tight">
-            Built for apartment life.
+            Built for apartment communities.
           </h2>
           <p className="text-sm sm:text-base text-[#5C5A56]">
-            Endorsed by resident welfare associations and facility management boards across Hyderabad.
+            Every campaign operates under strict community protocols designed in collaboration with resident associations and facility managers.
           </p>
         </div>
 
@@ -86,32 +62,18 @@ export const AssociationTrustSection: React.FC = () => {
           ))}
         </div>
 
-        {/* Association Testimonials */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-          {testimonials.map((t, idx) => (
-            <div
-              key={idx}
-              className="p-7 sm:p-8 bg-white rounded-[24px] border border-[#E4E0D8] flex flex-col justify-between space-y-6 shadow-2xs"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center gap-1 text-[#2596be]">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-current" />
-                  ))}
-                </div>
-                <p className="text-sm sm:text-base text-[#111111] leading-relaxed italic">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-[#E4E0D8] space-y-0.5">
-                <div className="font-display font-medium text-sm text-[#111111]">
-                  {t.author}
-                </div>
-                <div className="text-xs text-[#5C5A56]">{t.role}</div>
-              </div>
-            </div>
-          ))}
+        {/* How Service Providers Work with GK */}
+        <div className="p-8 bg-white rounded-[24px] border border-[#E4E0D8] shadow-2xs space-y-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#2596be]">
+            <Wrench className="w-4 h-4" />
+            <span>Service Provider Operations</span>
+          </div>
+          <h3 className="font-display text-xl sm:text-2xl font-medium text-[#111111]">
+            How Service Providers Work With GK Apartment Care
+          </h3>
+          <p className="text-xs sm:text-sm text-[#5C5A56] leading-relaxed max-w-3xl">
+            Service providers work with GK to serve organized community demand. GK coordinates campaign requirements, resident scheduling, gate passes, and community-level execution so specialized technician teams can focus entirely on high-quality workmanship.
+          </p>
         </div>
       </div>
     </Section>

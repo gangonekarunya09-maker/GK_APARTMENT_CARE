@@ -6,33 +6,51 @@ export const FAQSection: React.FC = () => {
   const faqs: AccordionItem[] = [
     {
       id: 'faq-1',
-      question: 'How does the Sunday Community Bulk pooling work?',
+      question: 'What is GK Apartment Care?',
       answer:
-        'When multiple flats in your tower or gated society book home care or car cleaning for the same weekend, our operations team batches technician visits. This lowers logistics overhead and unlocks 20% to 35% bulk discounts for every participating flat.',
+        'GK Apartment Care is a community-first service platform that organizes trusted doorstep home and automobile services for gated apartment complexes in Hyderabad through scheduled campaigns, pooled resident demand, and coordinated gate passes.',
     },
     {
       id: 'faq-2',
-      question: 'How do you observe society quiet hours?',
+      question: 'How does a community service campaign work?',
       answer:
-        'We enforce a strict 1:00 PM to 2:30 PM quiet hour break. During this period, all noisy equipment (such as deep scrubbers, drillers, pressure washers, and carpet extractors) is strictly suspended to respect resident afternoon rest.',
+        'A service campaign is created for your specific apartment complex with transparent community rates and batch dates. Residents express interest by clicking "I\'m Interested". When enough neighbors join, GK coordinates the assigned provider crew and scheduled time slots.',
     },
     {
       id: 'faq-3',
-      question: 'Are all technicians police verified and insured?',
+      question: 'Do I book directly with an arbitrary provider?',
       answer:
-        'Yes. 100% of our service personnel undergo mandatory Aadhaar verification and police background clearance. They arrive wearing official GK Apartment Care badges and uniforms, with digital gate passes sent directly to your society security booth.',
+        'No. Instead of dealing with unvetted independent contractors, you register through your society\'s campaign. GK manages provider selection, background checks, equipment standards, and gate pass coordination.',
     },
     {
       id: 'faq-4',
-      question: 'Do I need to pay in advance when booking?',
+      question: 'What happens when enough residents are interested?',
       answer:
-        'No advance payment is required for regular doorstep bookings. You only pay after the service is fully completed to your complete satisfaction via UPI, cards, or net banking.',
+        'Once the minimum demand target for the campaign is reached, the batch is confirmed. Registered residents receive WhatsApp notifications with their allocated time slot and gate pass confirmation.',
     },
     {
       id: 'faq-5',
-      question: 'How can our Apartment Association (RWA) partner with GK Apartment Care?',
+      question: 'How do I access my community portal?',
       answer:
-        'RWA committees can submit an application via our RWA Partnerships page. We will set up a dedicated digital community portal for your society, configure custom bulk slabs, and assign a dedicated relationship manager within 24 hours.',
+        'Every partner apartment community has a private URL format (/c/:slug/:token) distributed through your resident WhatsApp groups, apartment app notices, or RWA management desk.',
+    },
+    {
+      id: 'faq-6',
+      question: 'What happens if the demand target is not reached?',
+      answer:
+        'If the minimum threshold is not met before the campaign deadline, our operations desk will notify you to reschedule for the next batch or offer an individual service visit with zero cancellation penalties.',
+    },
+    {
+      id: 'faq-7',
+      question: 'How are society quiet hours observed?',
+      answer:
+        'All noisy machinery and high-decibel operations are strictly suspended from 1:00 PM to 2:30 PM to respect resident afternoon rest hours across all towers.',
+    },
+    {
+      id: 'faq-8',
+      question: 'How can our Apartment Association (RWA) partner with GK?',
+      answer:
+        'RWA committees can submit an onboarding request through our RWA Partnerships page. We will set up a dedicated portal for your society and coordinate with your facility management board.',
     },
   ];
 
@@ -48,7 +66,7 @@ export const FAQSection: React.FC = () => {
             Clear answers.
           </h2>
           <p className="text-sm sm:text-base text-[#5C5A56]">
-            Everything you need to know about our doorstep services, security protocols, and bulk rates.
+            Everything you need to know about our community campaigns, scheduling, and gate coordination.
           </p>
         </div>
 
