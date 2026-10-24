@@ -504,7 +504,7 @@ export const ProvidersManager: React.FC = () => {
                   </a>
 
                   <a
-                    href={`https://wa.me/${(p.whatsapp || p.phone || '').replace(/\D/g, '') || '919849012345'}?text=${encodeURIComponent(
+                    href={`https://wa.me/${(p.whatsapp || p.phone || '').replace(/\D/g, '') || '917207070801'}?text=${encodeURIComponent(
                       `Hi ${p.contactPerson}! Connecting from GK Apartment Care operations regarding upcoming society service schedules & payouts.`
                     )}`}
                     target="_blank"

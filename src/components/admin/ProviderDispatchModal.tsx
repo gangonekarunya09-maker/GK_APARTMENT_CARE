@@ -144,7 +144,7 @@ ${additionalNotes ? `📌 *SPECIAL OPERATOR INSTRUCTIONS:*\n${additionalNotes}\n
 3. Call resident prior to ringing doorbell if running ahead/behind schedule.
 4. Update GK Operations after completing each floor/block.
 
-📞 *GK Operations Emergency Helpline:* +91 94943 35848`;
+📞 *GK Operations Emergency Helpline:* +91 72070 70801`;
 
     return message;
   }, [

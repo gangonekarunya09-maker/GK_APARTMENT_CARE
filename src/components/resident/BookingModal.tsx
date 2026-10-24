@@ -514,7 +514,7 @@ export const BookingModal: React.FC = () => {
                 </Button>
 
                 <a
-                  href={`https://wa.me/919494335848?text=${encodeURIComponent(
+                  href={`https://wa.me/917207070801?text=${encodeURIComponent(
                     `Hi GK Apartment Care! I just booked ${createdBooking.serviceName} (${createdBooking.bookingNumber}) for ${createdBooking.apartmentName}, Flat ${createdBooking.flatNumber}.`
                   )}`}
                   target="_blank"

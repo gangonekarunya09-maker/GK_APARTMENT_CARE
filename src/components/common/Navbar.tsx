@@ -120,14 +120,14 @@ export const Navbar: React.FC = () => {
         {/* Right: Actions Cluster */}
         <div className="flex items-center gap-3">
           <a
-            href="https://wa.me/919494335848?text=Hi%20GK%20Apartment%20Care!"
+            href="https://wa.me/917207070801?text=Hi%20GK%20Apartment%20Care!"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-[#5C5A56] hover:text-[#111111] transition-colors py-2 px-3 rounded-full hover:bg-[#F0EDE7]"
             title="Helpline / WhatsApp"
           >
             <Phone className="w-3.5 h-3.5 text-[#2596be]" />
-            <span>+91 94943 35848</span>
+            <span>+91 72070 70801</span>
           </a>
 
           {/* Primary Action CTA Pill */}

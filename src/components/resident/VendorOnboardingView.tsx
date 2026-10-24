@@ -108,7 +108,7 @@ export const VendorOnboardingView: React.FC = () => {
               <div className="space-y-1 text-xs sm:text-sm text-[#5C5A56]">
                 <div className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-[#2596be]" />
-                  <span>+91 94943 35848</span>
+                  <span>+91 72070 70801</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-[#2596be]" />

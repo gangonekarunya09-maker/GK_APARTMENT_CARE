@@ -140,21 +140,21 @@ export const Footer: React.FC = () => {
             </h4>
             <div className="space-y-2 text-xs sm:text-sm text-[#5C5A56]">
               <a
-                href="https://wa.me/919494335848?text=Hi%20GK%20Apartment%20Care!"
+                href="https://wa.me/917207070801?text=Hi%20GK%20Apartment%20Care!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-[#2E8B57] transition-colors"
               >
                 <MessageCircle className="w-4 h-4 text-[#2E8B57] shrink-0" />
-                <span>WhatsApp: +91 94943 35848</span>
+                <span>WhatsApp: +91 72070 70801</span>
               </a>
 
               <a
-                href="tel:+919494335848"
+                href="tel:+917207070801"
                 className="flex items-center gap-2 hover:text-[#111111] transition-colors"
               >
                 <Phone className="w-4 h-4 text-[#2596be] shrink-0" />
-                <span>Helpline: +91 94943 35848</span>
+                <span>Helpline: +91 72070 70801</span>
               </a>
 
               <a

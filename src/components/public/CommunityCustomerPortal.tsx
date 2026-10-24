@@ -728,7 +728,7 @@ ${portalUrl}
                             {/* WhatsApp Direct Help */}
                             <div className="flex justify-end">
                               <a
-                                href={`https://wa.me/919494335848?text=${encodeURIComponent(
+                                href={`https://wa.me/917207070801?text=${encodeURIComponent(
                                   `Hi GK Apartment Care! Checking on my order ${b.bookingNumber} (${b.serviceName}) for ${apartment.name}, Flat ${b.flatNumber}.`
                                 )}`}
                                 target="_blank"
@@ -757,7 +757,7 @@ ${portalUrl}
             <span>Pre-cleared with {apartment.gateSecurityApp} · Verified background-checked staff</span>
           </div>
           <p>
-            Questions? Contact your community operations desk at +91 94943 35848 or care@gkapartmentcare.com.
+            Questions? Contact your community operations desk at +91 72070 70801 or care@gkapartmentcare.com.
           </p>
         </section>
       </main>

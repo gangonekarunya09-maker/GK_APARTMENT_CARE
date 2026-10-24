@@ -106,7 +106,7 @@ export const RWAPartnershipsView: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-[#2596be]" />
-                  <span>Helpline: +91 94943 35848 (Hyderabad)</span>
+                  <span>Helpline: +91 72070 70801 (Hyderabad)</span>
                 </div>
               </div>
             </div>

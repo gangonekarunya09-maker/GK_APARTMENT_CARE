@@ -260,7 +260,7 @@ ${p.payoutUpiId ? `• Registered UPI ID: ${p.payoutUpiId}` : ''}
 Thank you for delivering quality doorstep services across Hyderabad gated communities!
 GK Apartment Care Operations`;
 
-    const url = `https://wa.me/${p.whatsapp.replace(/\D/g, '') || '919849012345'}?text=${encodeURIComponent(msg)}`;
+    const url = `https://wa.me/${p.whatsapp.replace(/\D/g, '') || '917207070801'}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
 

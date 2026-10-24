@@ -1585,7 +1585,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             totalUnits: 250,
             gateSecurityApp: 'Digital Gate Pass',
             rwaContact: 'Operations Team',
-            rwaPhone: '+91 94943 35848',
+            rwaPhone: '+91 72070 70801',
             rwaEmail: 'admin@gkapartmentcare.com',
             status: 'active',
             createdAt: new Date().toISOString(),

@@ -141,7 +141,7 @@ export const SocietySelectorModal: React.FC = () => {
 
           {/* Footer note */}
           <div className="p-3.5 bg-[#F8F9FA] border-t border-[#E5E7EB] text-center text-xs text-[#667085]">
-            Can&apos;t find your society? WhatsApp our team at <a href="https://wa.me/919849012345" target="_blank" rel="noopener noreferrer" className="text-[#2596be] font-semibold underline">+91 98490 12345</a> to onboard your community.
+            Can&apos;t find your society? WhatsApp our team at <a href="https://wa.me/917207070801" target="_blank" rel="noopener noreferrer" className="text-[#2596be] font-semibold underline">+91 72070 70801</a> to onboard your community.
           </div>
         </motion.div>
       </div>

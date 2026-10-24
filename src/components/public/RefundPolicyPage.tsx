@@ -49,7 +49,7 @@ export const RefundPolicyPage: React.FC = () => {
                 <strong className="text-[#111111]">Free Cancellation:</strong> You may cancel or reschedule your requested time slot at zero penalty up to <strong className="text-[#111111]">2 hours prior</strong> to the scheduled arrival window.
               </li>
               <li>
-                <strong className="text-[#111111]">How to Cancel/Reschedule:</strong> Message our WhatsApp desk at <code className="text-[#111111] font-mono">+91 94943 35848</code> with your Booking/Request Number, or contact your society batch coordinator.
+                <strong className="text-[#111111]">How to Cancel/Reschedule:</strong> Message our WhatsApp desk at <code className="text-[#111111] font-mono">+91 72070 70801</code> with your Booking/Request Number, or contact your society batch coordinator.
               </li>
             </ul>
           </div>
@@ -103,7 +103,7 @@ export const RefundPolicyPage: React.FC = () => {
               For cancellation or refund assistance:
             </p>
             <div className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#E4E0D8] space-y-1 text-xs">
-              <div><strong className="text-[#111111]">WhatsApp Desk:</strong> +91 94943 35848</div>
+              <div><strong className="text-[#111111]">WhatsApp Desk:</strong> +91 72070 70801</div>
               <div><strong className="text-[#111111]">Email:</strong> care@gkapartmentcare.com</div>
               <div><strong className="text-[#111111]">Operating Hours:</strong> 8:00 AM – 8:00 PM (Monday – Sunday)</div>
             </div>

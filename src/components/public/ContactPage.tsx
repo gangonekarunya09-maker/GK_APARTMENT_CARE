@@ -35,7 +35,7 @@ export const ContactPage: React.FC = () => {
         society.trim() ? ` from ${society.trim()}` : ''
       }.\nTopic: ${subject.toUpperCase()}\nMessage: ${message.trim()}`
     );
-    window.open(`https://wa.me/919494335848?text=${waText}`, '_blank');
+    window.open(`https://wa.me/917207070801?text=${waText}`, '_blank');
     setFormSubmitted(true);
   };
 
@@ -77,7 +77,7 @@ export const ContactPage: React.FC = () => {
 
             <div className="space-y-3.5 pt-2">
               <a
-                href="https://wa.me/919494335848?text=Hi%20GK%20Apartment%20Care!"
+                href="https://wa.me/917207070801?text=Hi%20GK%20Apartment%20Care!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#E4E0D8] flex items-center gap-3.5 hover:border-[#25D366] transition-colors group block"
@@ -88,13 +88,13 @@ export const ContactPage: React.FC = () => {
                 <div>
                   <div className="text-xs text-[#5C5A56]">WhatsApp Support (Fastest)</div>
                   <div className="font-medium text-sm text-[#111111] group-hover:text-[#25D366]">
-                    +91 94943 35848
+                    +91 72070 70801
                   </div>
                 </div>
               </a>
 
               <a
-                href="tel:+919494335848"
+                href="tel:+917207070801"
                 className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#E4E0D8] flex items-center gap-3.5 hover:border-[#2596be] transition-colors group block"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#2596be]/10 text-[#2596be] flex items-center justify-center shrink-0">
@@ -103,7 +103,7 @@ export const ContactPage: React.FC = () => {
                 <div>
                   <div className="text-xs text-[#5C5A56]">Helpline Phone</div>
                   <div className="font-medium text-sm text-[#111111] group-hover:text-[#2596be]">
-                    +91 94943 35848
+                    +91 72070 70801
                   </div>
                 </div>
               </a>

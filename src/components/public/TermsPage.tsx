@@ -106,7 +106,7 @@ export const TermsPage: React.FC = () => {
             </p>
             <div className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#E4E0D8] space-y-1 text-xs">
               <div><strong className="text-[#111111]">Email:</strong> care@gkapartmentcare.com</div>
-              <div><strong className="text-[#111111]">Helpline:</strong> +91 94943 35848</div>
+              <div><strong className="text-[#111111]">Helpline:</strong> +91 72070 70801</div>
               <div><strong className="text-[#111111]">Location:</strong> Hyderabad, Telangana, India</div>
             </div>
           </div>
